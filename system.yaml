@@ -1,0 +1,133 @@
+# Canonical arthor-systemmap manifest (JSON Schema: arthor-systemmap/schema/system.schema.json).
+# Validate: cd arthor-systemmap && npm run validate:manifest -- ../arthor-image-service/system.yaml
+id: arthor-image-service
+name: Arthor Image Service
+kind: fastapi
+repo: https://github.com/Arthor-HQ/arthor-image-service
+owners: [slowcoder360]
+languages: [python]
+ops_hints:
+  github: Arthor-HQ/arthor-image-service
+agents:
+  - id: image-pack-pipeline
+    role: builder
+    status: current
+    desc: Background asset-pack orchestration, slot generation, R2 upload, and cost rollup.
+resources:
+  - id: r2-media-bucket
+    kind: bucket
+    desc: Generated assets and cold-storage rotation under configured R2 bucket.
+  - id: pack-concurrency-limit
+    kind: token
+    desc: Semaphore cap (max_concurrent_packs) for concurrent pack workers.
+exposes:
+  http:
+    - { path: /healthz, method: GET, desc: Liveness JSON status/version }
+    - path: /images/asset-pack/generate
+      method: POST
+      desc: >-
+        HMAC-signed payload; validates image request, idempotent replay, enqueues pack generation.
+    - path: /images/style-profile/preview
+      method: POST
+      desc: >-
+        HMAC-signed synchronous single-slot style probe for palette and prompt QA.
+    - path: /images/regenerate-slot
+      method: POST
+      desc: >-
+        HMAC-signed fork/regenerate one slot from an existing asset id.
+    - { path: /inspector/login, method: GET, desc: Inspector login form (public) }
+    - path: /inspector/login
+      method: POST
+      desc: >-
+        Inspector login form posts INSPECTOR_ADMIN_TOKEN; sets session cookie.
+    - path: /inspector/runs
+      method: GET
+      desc: Paginated HTMX run list with optional run_type filter.
+    - path: "/inspector/runs/{run_id}"
+      method: GET
+      desc: >-
+        Run detail with payload, style profile, tool_calls, and assets grid.
+  webhooks:
+    - path: /images/asset-pack/generate
+      desc: arthor-ai site-build dispatch (X-Arthor-Signature HMAC raw body).
+    - path: /images/style-profile/preview
+      desc: HMAC-protected style probe for operators and pipelines.
+    - path: /images/regenerate-slot
+      desc: HMAC-protected slot regeneration from inspector-driven workflows.
+consumes:
+  services:
+    - id: arthor-ai
+      protocol: https
+      desc: >-
+        Planned primary dispatcher via site-build RunImagePack hook; signs outbound JSON with FASTAPI_ARTHOR_SHARED_SECRET.
+  datastores:
+    - id: pg_main
+      role: read-write
+      desc: >-
+        agent_runs, tool_calls, image_request_payloads, external_media_assets (W11 absorb coordination with Neon schema owner).
+  external:
+    - id: openai
+      purpose: image_generation
+      desc: Image generation and edits per provider registry.
+    - id: google_gemini
+      purpose: image_generation
+      desc: Gemini / Nano Banana image paths when GOOGLE_API_KEY is set.
+  runbook_feeds: []
+env_vars:
+  - DATABASE_URL
+  - FASTAPI_ARTHOR_SHARED_SECRET
+  - INSPECTOR_ADMIN_TOKEN
+  - R2_ENDPOINT_URL
+  - R2_ACCESS_KEY_ID
+  - R2_SECRET_ACCESS_KEY
+  - R2_BUCKET
+  - OPENAI_API_KEY
+  - GOOGLE_API_KEY
+  - MAX_CONCURRENT_PACKS
+  - PALETTE_DRIFT_THRESHOLD
+  - COLD_STORAGE_INTERVAL_SECONDS
+  - LOG_LEVEL
+runbooks: []
+agent_context:
+  short_summary: FastAPI worker for hero and slot imagery — HMAC ingress from arthor-ai, Postgres harness rows, R2 assets, HTMX inspector.
+  mission: Accept signed payloads, run OpenAI/Gemini providers with deterministic StyleProfile and palette QA, persist runs and uploads, expose Justin-only inspector UX.
+  role_in_arthor: Downstream image plane called from site-build; shares HMAC secret naming with arthor-agent; schema absorbed into arthor-ai Drizzle per W11 plan.
+  why_system_map_syncs_this: Launch graph must show image ingress, secrets, R2, and Postgres coupling before RunImagePack lands in production builds.
+  user_facing_value: Brand-coherent asset packs with observable cost, supersession, and regeneration loops.
+  critical_flows:
+    - POST /images/asset-pack/generate → validate payload → background pack_worker → tool_calls + R2 URLs
+    - Style preview probe for governance before full pack spend
+    - Inspector login → run list → run detail for QA and fork-rerun
+  capabilities:
+    - { id: asset-pack-generation, status: current, desc: Full multi-slot pack from PayloadV1 with idempotency }
+    - { id: slot-regeneration, status: current, desc: Superseding regenerations with optional prompt modifiers }
+  flows:
+    - id: image-pack-from-product
+      title: Site-build dispatches asset pack
+      status: proposed
+      summary: arthor-ai Inngest stage POSTs HMAC body; service persists run and executes providers.
+      path:
+        - arthor-ai
+        - arthor-image-service
+        - datastore:pg_main
+      stages:
+        - id: dispatch
+          title: HMAC verify + enqueue
+          node_ids: [arthor-ai, arthor-image-service]
+        - id: generate
+          title: Providers + R2 + rollup
+          node_ids: [arthor-image-service, datastore:pg_main]
+  integration_boundaries: Does not own billing, Clerk sessions, or customer-site hosting; no migrations applied to Neon prod until W11 absorb completes.
+  repo_layout_hints:
+    - app/main.py wires routers; app/routes/* HMAC POST APIs; app/inspector/* HTMX UI
+    - app/orchestration/pack_worker.py background generation; db/migrations SQL
+    - plan/CONTEXT.md vocabulary for StyleProfile, supersession, W11 absorb
+  when_to_update_this_manifest:
+    - New HTTP routes, inspector pages, or auth changes
+    - Provider additions, env vars, R2 lifecycle changes
+    - Run type literals or Postgres tables touching agent_runs / assets
+    - When arthor-ai wires RunImagePack — flip flow status to current and tighten consumes.services wording
+  agent_instruction_prompt: |
+    Treat system.yaml as contract with arthor-systemmap. When editing FastAPI routes, HMAC validation,
+    Settings/env fields, R2, or migrations, update this file in the same change and run:
+    npm run validate:manifest -- path/to/arthor-image-service/system.yaml from the arthor-systemmap repo.
