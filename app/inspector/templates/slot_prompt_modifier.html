@@ -1,0 +1,42 @@
+<div id="iteration-panel-{{ slot_key }}" class="iteration-panel" data-slot="{{ slot_id }}">
+  {% if soft_deleted %}
+  <p class="notice">Asset soft-deleted (superseded).</p>
+  {% elif regen_message %}
+  <p class="notice">{{ regen_message }}</p>
+  {% endif %}
+  {% if not soft_deleted %}
+  <form
+    class="fork-rerun-form"
+    method="post"
+    action="/inspector/slots/{{ asset_id }}/regenerate"
+    hx-post="/inspector/slots/{{ asset_id }}/regenerate"
+    hx-target="#iteration-panel-{{ slot_key }}"
+    hx-swap="outerHTML"
+  >
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" autocomplete="off" />
+    <label>
+      Prompt modifier
+      <input type="text" name="prompt_modifier" placeholder="Describe the tweak…" class="input-wide" />
+    </label>
+    <label>
+      New seed (optional)
+      <input type="number" name="new_seed" />
+    </label>
+    <button type="submit" class="btn primary">Fork &amp; rerun</button>
+  </form>
+  <p class="iteration-actions">
+    <button
+      type="button"
+      class="btn secondary"
+      hx-get="/inspector/slots/{{ slot_id }}/variants?run_id={{ run_id }}"
+      hx-target="#variants-{{ slot_key }}"
+      hx-swap="innerHTML"
+    >
+      Toggle variants
+    </button>
+    <a class="btn link" href="/inspector/runs/{{ run_id }}/grid">Pack grid</a>
+  </p>
+  <div id="variants-{{ slot_key }}" class="variants-host"></div>
+  {% include "soft_delete_form.html" %}
+  {% endif %}
+</div>

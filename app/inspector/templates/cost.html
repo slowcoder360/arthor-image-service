@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Cost{% endblock %}
+{% block content %}
+<h1>Costs</h1>
+
+<form method="get" action="/inspector/cost" class="toolbar">
+  <label>
+    <span class="muted">date_from</span>
+    <input type="date" name="date_from" value="{{ date_from }}" />
+  </label>
+  <label>
+    <span class="muted">date_to</span>
+    <input type="date" name="date_to" value="{{ date_to }}" />
+  </label>
+  <label>
+    <span class="muted">site_id</span>
+    <input type="text" name="site_id" value="{{ site_id_s }}" placeholder="UUID" autocomplete="off" />
+  </label>
+  <label>
+    <span class="muted">provider</span>
+    <select name="provider">
+      <option value="" {% if not provider_s %}selected{% endif %}>(all providers)</option>
+      <option value="openai_image" {% if provider_s == 'openai_image' %}selected{% endif %}>openai_image</option>
+      <option value="google_nano_banana" {% if provider_s == 'google_nano_banana' %}selected{% endif %}>google_nano_banana</option>
+    </select>
+  </label>
+  <button type="submit">Filter</button>
+</form>
+
+<h2>Per run (recent)</h2>
+<table class="data">
+  <thead style="position: sticky; top: 0; z-index: 2; background: #151515">
+    <tr>
+      <th>agent_run_id</th>
+      <th>started_at</th>
+      <th>cost</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows_per_run %}
+    <tr>
+      <td><a href="/inspector/runs/{{ r.agent_run_id }}">{{ r.agent_run_id }}</a></td>
+      <td class="muted">{{ r.started_at }}</td>
+      <td>{{ dollar_fmt(r.cost_cents) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="muted">No runs match these filters.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Per day (UTC)</h2>
+<table class="data">
+  <thead style="position: sticky; top: 0; z-index: 2; background: #151515">
+    <tr>
+      <th>day</th>
+      <th>cost</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows_per_day %}
+    <tr>
+      <td>{{ r.day }}</td>
+      <td>{{ dollar_fmt(r.cost_cents) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="2" class="muted">No days match these filters.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Per site (top)</h2>
+<table class="data">
+  <thead style="position: sticky; top: 0; z-index: 2; background: #151515">
+    <tr>
+      <th>site_id</th>
+      <th>cost</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows_per_site %}
+    <tr>
+      <td>{{ r.site_id }}</td>
+      <td>{{ dollar_fmt(r.cost_cents) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="2" class="muted">No sites match these filters.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Per provider</h2>
+<table class="data">
+  <thead style="position: sticky; top: 0; z-index: 2; background: #151515">
+    <tr>
+      <th>provider</th>
+      <th>cost</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows_per_provider %}
+    <tr>
+      <td>{{ r.provider }}</td>
+      <td>{{ dollar_fmt(r.cost_cents) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="2" class="muted">No provider rows.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Per slot kind</h2>
+<table class="data">
+  <thead style="position: sticky; top: 0; z-index: 2; background: #151515">
+    <tr>
+      <th>slot_kind</th>
+      <th>cost</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows_per_slot_type %}
+    <tr>
+      <td>{{ r.slot_kind }}</td>
+      <td>{{ dollar_fmt(r.cost_cents) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="2" class="muted">No slot rows.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

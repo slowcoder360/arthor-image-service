@@ -17,11 +17,10 @@ def test_canonical_hash_stable_across_key_reorder():
         pytest.fail(f"AC-6: PayloadV1 must be importable ({exc})")
 
     raw_a = mvp_payload()
-    raw_b = mvp_payload()
 
     flipped: dict = {}
-    for key in reversed(list(raw_b.keys())):
-        flipped[key] = raw_b[key]
+    for key in reversed(list(raw_a.keys())):
+        flipped[key] = raw_a[key]
 
     payload_a = PayloadV1.model_validate(raw_a)
     payload_b = PayloadV1.model_validate(flipped)

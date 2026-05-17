@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import pytest
 
+from fastapi import Request
+
 
 def _build_app(secret: str | None):
     try:
-        from fastapi import Depends, FastAPI, Request
+        from fastapi import Depends, FastAPI
         from httpx import ASGITransport, AsyncClient
     except ImportError as exc:
         pytest.fail(f"fastapi/httpx not installed: {exc}")

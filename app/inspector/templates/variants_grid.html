@@ -1,0 +1,17 @@
+<div class="variants-grid" role="region" aria-label="Slot variants">
+  {% for v in variants %}
+  <article class="variant-card">
+    {% if v.r2_url %}
+    <img src="{{ v.r2_url }}" alt="" width="160" height="160" loading="lazy" class="variant-thumb" />
+    {% endif %}
+    <dl class="variant-meta">
+      <dt>prompt_hash</dt><dd><code>{{ v.prompt_hash }}</code></dd>
+      <dt>seed</dt><dd>{{ v.seed }}</dd>
+      <dt>provider</dt><dd>{{ v.provider }}</dd>
+      <dt>cost</dt><dd>{{ v.cost_cents }}¢</dd>
+    </dl>
+  </article>
+  {% else %}
+  <p class="muted">No variants for this slot.</p>
+  {% endfor %}
+</div>

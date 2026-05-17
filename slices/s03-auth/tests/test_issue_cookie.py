@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+from fastapi import Response
+
 
 def _import_issuer():
     try:
@@ -18,7 +20,7 @@ def _import_issuer():
 @pytest.mark.asyncio
 async def test_issue_inspector_cookie_attributes_via_route():
     try:
-        from fastapi import FastAPI, Response
+        from fastapi import FastAPI
         from httpx import ASGITransport, AsyncClient
     except ImportError as exc:
         pytest.fail(f"fastapi/httpx not installed: {exc}")

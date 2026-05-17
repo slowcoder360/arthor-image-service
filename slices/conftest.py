@@ -10,12 +10,45 @@ declarations coexist harmlessly.
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 
 import pytest
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+# Ensure integration tests that hit `app.main:app` see auth secrets unless overridden.
+os.environ.setdefault("FASTAPI_ARTHOR_SHARED_SECRET", "test-hmac-secret")
+os.environ.setdefault("INSPECTOR_ADMIN_TOKEN", "test-inspector-token")
 
 
 REQUIRES_DB_ENV = "DATABASE_URL"
 REQUIRES_R2_ENVS = ("R2_ENDPOINT_URL", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET")
+
+
+@pytest.fixture(autouse=True)
+def _restore_env_and_app_state_after_each_test() -> None:
+    """s01 settings tests delete env vars; shared `app.main.app` must not keep stale RuntimeServices."""
+    yield
+    os.environ.setdefault("FASTAPI_ARTHOR_SHARED_SECRET", "test-hmac-secret")
+    os.environ.setdefault("INSPECTOR_ADMIN_TOKEN", "test-inspector-token")
+    try:
+        import app.main as app_main
+
+        if hasattr(app_main.app.state, "services"):
+            delattr(app_main.app.state, "services")
+        app_main._missing_database_url_logged = False
+        app_main._missing_r2_config_logged = False
+    except Exception:
+        pass
+    try:
+        from app.config import get_settings
+
+        get_settings.cache_clear()
+    except Exception:
+        pass
 
 
 def pytest_configure(config: pytest.Config) -> None:

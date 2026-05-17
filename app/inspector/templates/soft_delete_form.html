@@ -1,0 +1,15 @@
+<form
+  class="soft-delete-form"
+  method="post"
+  action="/inspector/assets/{{ asset_id }}/soft-delete"
+  hx-post="/inspector/assets/{{ asset_id }}/soft-delete"
+  hx-target="#iteration-panel-{{ slot_key }}"
+  hx-swap="outerHTML"
+>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" autocomplete="off" />
+  <label>
+    Soft-delete reason
+    <input type="text" name="reason" required placeholder="Why discard this slot output?" class="input-wide" />
+  </label>
+  <button type="submit" class="btn danger">Soft-delete current</button>
+</form>

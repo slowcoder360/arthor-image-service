@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Runs{% endblock %}
+{% block content %}
+<h1>Agent runs</h1>
+
+<form method="get" action="/inspector/runs" class="toolbar">
+  <label>
+    <span class="muted">run_type</span>
+    <select name="run_type">
+      <option value="" {% if not run_type_filter %}selected{% endif %}>all image runs</option>
+      <option value="image_pack_generation" {% if run_type_filter == 'image_pack_generation' %}selected{% endif %}>image_pack_generation</option>
+      <option value="image_slot_regenerate" {% if run_type_filter == 'image_slot_regenerate' %}selected{% endif %}>image_slot_regenerate</option>
+      <option value="image_style_preview" {% if run_type_filter == 'image_style_preview' %}selected{% endif %}>image_style_preview</option>
+    </select>
+  </label>
+  <button type="submit">Filter</button>
+</form>
+
+<table class="data">
+  <thead>
+    <tr>
+      <th>id</th>
+      <th>run_type</th>
+      <th>status</th>
+      <th>started_at</th>
+      <th>cost</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for run in runs %}
+    <tr>
+      <td><a href="/inspector/runs/{{ run.id }}">{{ run.id }}</a></td>
+      <td>{{ run.run_type }}</td>
+      <td>{{ run.status }}</td>
+      <td class="muted">{{ run.started_at }}</td>
+      <td>${{ '%.2f' % ((run.cost_cents or 0) / 100.0) }} <span class="muted">({{ run.cost_cents or 0 }}¢)</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">No runs in this view.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<nav class="pagination" aria-label="Pagination">
+  {% for p in page_numbers %}
+  <a
+    href="/inspector/runs?page={{ p }}{% if run_type_filter %}&run_type={{ run_type_filter }}{% endif %}"
+    hx-get="/inspector/runs?page={{ p }}{% if run_type_filter %}&run_type={{ run_type_filter }}{% endif %}"
+    hx-target="#inspector-main"
+    hx-select="#inspector-main"
+    hx-swap="outerHTML"
+    hx-push-url="true"
+    class="{% if p == page %}active{% endif %}"
+  >page {{ p }}</a>
+  {% endfor %}
+</nav>
+{% endblock %}

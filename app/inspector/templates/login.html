@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<h1>Inspector login</h1>
+{% if error %}
+<p class="banner error" role="alert">{{ error }}</p>
+{% endif %}
+<form method="post" action="/inspector/login" class="stack">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" autocomplete="off" />
+  <label class="stack">
+    <span>Admin token</span>
+    <input type="password" name="token" autocomplete="current-password" required />
+  </label>
+  <button type="submit">Sign in</button>
+</form>
+{% endblock %}

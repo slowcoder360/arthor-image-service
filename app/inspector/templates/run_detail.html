@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run.id }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="/inspector/runs">← Runs</a></p>
+<h1>Run <code>{{ run.id }}</code></h1>
+
+<section class="panel">
+  <h2>Run metadata</h2>
+  <dl class="kv">
+    <dt>status</dt><dd>{{ run.status }}</dd>
+    <dt>run_type</dt><dd>{{ run.run_type }}</dd>
+    <dt>cost_cents</dt><dd>{{ run.cost_cents }}</dd>
+    <dt>started_at</dt><dd>{{ run.started_at }}</dd>
+    <dt>finished_at</dt><dd>{{ run.finished_at or '—' }}</dd>
+  </dl>
+</section>
+
+<section class="panel">
+  <h2>Style profile</h2>
+  <pre class="json">{{ style_text }}</pre>
+</section>
+
+<section class="panel">
+  <h2>Payload</h2>
+  <pre class="json">{{ payload_text }}</pre>
+</section>
+
+<section class="panel">
+  <h2>Assets</h2>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>slot</th>
+        <th>id</th>
+        <th>provider</th>
+        <th>status</th>
+        <th>preview</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for asset in assets %}
+      <tr>
+        <td>{{ asset.metadata.get('slot_id', '—') }}</td>
+        <td><code>{{ asset.id }}</code></td>
+        <td>{{ asset.provider }} / {{ asset.model_version }}</td>
+        <td>
+          {{ asset.status }}
+          {% if asset.palette_drift %}
+          <span class="badge palette-drift">Palette drift</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if asset.r2_url %}
+          <a href="{{ asset.r2_url }}" target="_blank" rel="noopener">open</a>
+          <img src="{{ asset.r2_url }}" alt="" class="thumb" loading="lazy" />
+          {% else %}
+          <span class="badge pending">No r2_url</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">No assets.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Iteration</h2>
+  <p class="muted">Per-slot controls — prompt modifier, fork-rerun, variants, soft-delete.</p>
+  {% for it in iteration_targets %}
+  {% set slot_key = it.slot_key %}
+  {% set slot_id = it.slot_id %}
+  {% set asset_id = it.asset_id %}
+  {% set run_id = it.run_id %}
+  {% set regen_message = it.regen_message %}
+  {% set soft_deleted = it.soft_deleted %}
+  {% include "slot_prompt_modifier.html" %}
+  {% else %}
+  <p class="muted">No uploaded slots with <code>slot_id</code> to iterate on.</p>
+  {% endfor %}
+</section>
+
+<section class="panel">
+  <h2>Tool calls</h2>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>provider</th>
+        <th>model</th>
+        <th>status</th>
+        <th>cost_cents</th>
+        <th>latency_ms</th>
+        <th>trimmed response</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tc in tool_calls %}
+      <tr>
+        <td>{{ tc.provider }}</td>
+        <td>{{ tc.model_version }}</td>
+        <td>{{ tc.status }}</td>
+        <td>{{ tc.cost_cents }}</td>
+        <td>{{ tc.latency_ms }}</td>
+        <td><pre class="json compact">{{ tc.result_text }}</pre></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">No tool calls.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

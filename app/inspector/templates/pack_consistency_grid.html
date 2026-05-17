@@ -1,0 +1,28 @@
+<section class="pack-grid-panel">
+  <div
+    class="pack-consistency-grid"
+    style="grid-template-columns: repeat(auto-fill, minmax(256px, 1fr)); display: grid; gap: 1rem;"
+  >
+    {% if grid_assets|length %}
+    {% for a in grid_assets %}
+    <figure class="pack-grid-cell">
+      {% if a.r2_url %}
+      <img
+        src="{{ a.r2_url }}"
+        alt=""
+        width="256"
+        height="256"
+        loading="lazy"
+        style="width: 256px; height: 256px; object-fit: cover;"
+      />
+      {% endif %}
+      <figcaption class="muted">
+        <code>{{ a.id }}</code> · slot {{ a.slot_id }}
+      </figcaption>
+    </figure>
+    {% endfor %}
+    {% else %}
+    <p class="muted">No uploaded assets for this run.</p>
+    {% endif %}
+  </div>
+</section>

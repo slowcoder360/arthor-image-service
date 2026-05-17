@@ -1,0 +1,947 @@
+{
+  "$defs": {
+    "BrandVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "palette": {
+          "$ref": "#/$defs/Palette"
+        },
+        "typography": {
+          "$ref": "#/$defs/Typography"
+        },
+        "register_default": {
+          "enum": [
+            "photographic",
+            "illustrated",
+            "mixed"
+          ],
+          "title": "Register Default",
+          "type": "string"
+        },
+        "logo_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logo Asset Id"
+        },
+        "customer_reference_assets": {
+          "items": {
+            "$ref": "#/$defs/CustomerReferenceAsset"
+          },
+          "title": "Customer Reference Assets",
+          "type": "array"
+        }
+      },
+      "required": [
+        "palette",
+        "typography",
+        "register_default"
+      ],
+      "title": "BrandVisual",
+      "type": "object"
+    },
+    "BrandVoice": {
+      "additionalProperties": false,
+      "properties": {
+        "tone": {
+          "title": "Tone",
+          "type": "string"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "style_direction": {
+          "default": "",
+          "title": "Style Direction",
+          "type": "string"
+        },
+        "reference_likes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reference Likes",
+          "type": "array"
+        },
+        "do_not": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Do Not",
+          "type": "array"
+        }
+      },
+      "required": [
+        "tone"
+      ],
+      "title": "BrandVoice",
+      "type": "object"
+    },
+    "Business": {
+      "additionalProperties": false,
+      "properties": {
+        "site_name": {
+          "title": "Site Name",
+          "type": "string"
+        },
+        "industry": {
+          "title": "Industry",
+          "type": "string"
+        },
+        "icp_summary": {
+          "title": "Icp Summary",
+          "type": "string"
+        },
+        "value_prop": {
+          "title": "Value Prop",
+          "type": "string"
+        },
+        "proof_points": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Proof Points",
+          "type": "array"
+        },
+        "forbidden_subjects": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Forbidden Subjects",
+          "type": "array"
+        },
+        "priority_services": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Priority Services",
+          "type": "array"
+        }
+      },
+      "required": [
+        "site_name",
+        "industry",
+        "icp_summary",
+        "value_prop"
+      ],
+      "title": "Business",
+      "type": "object"
+    },
+    "CustomerReferenceAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "interior",
+            "team",
+            "product",
+            "logo",
+            "ambient"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "palette_hex": {
+          "items": {
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "type": "string"
+          },
+          "title": "Palette Hex",
+          "type": "array"
+        }
+      },
+      "required": [
+        "asset_id",
+        "role",
+        "url"
+      ],
+      "title": "CustomerReferenceAsset",
+      "type": "object"
+    },
+    "Location": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "local",
+            "regional",
+            "national"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "country": {
+          "pattern": "^[A-Z]{2}$",
+          "title": "Country",
+          "type": "string"
+        },
+        "service_areas": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Service Areas",
+          "type": "array"
+        }
+      },
+      "required": [
+        "mode",
+        "country"
+      ],
+      "title": "Location",
+      "type": "object"
+    },
+    "Pack": {
+      "additionalProperties": false,
+      "properties": {
+        "pack_id": {
+          "title": "Pack Id",
+          "type": "string"
+        },
+        "base_seed": {
+          "title": "Base Seed",
+          "type": "integer"
+        },
+        "slot_order": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Slot Order",
+          "type": "array"
+        },
+        "reference_policy": {
+          "$ref": "#/$defs/ReferencePolicy"
+        },
+        "default_provider_hint": {
+          "anyOf": [
+            {
+              "enum": [
+                "openai_image",
+                "google_nano_banana"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Provider Hint"
+        }
+      },
+      "required": [
+        "pack_id",
+        "base_seed",
+        "slot_order",
+        "reference_policy"
+      ],
+      "title": "Pack",
+      "type": "object"
+    },
+    "Palette": {
+      "additionalProperties": false,
+      "properties": {
+        "light": {
+          "$ref": "#/$defs/PaletteTone"
+        },
+        "dark": {
+          "$ref": "#/$defs/PaletteTone"
+        }
+      },
+      "required": [
+        "light",
+        "dark"
+      ],
+      "title": "Palette",
+      "type": "object"
+    },
+    "PaletteTone": {
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Primary",
+          "type": "string"
+        },
+        "secondary": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Secondary",
+          "type": "string"
+        },
+        "background": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Background",
+          "type": "string"
+        },
+        "foreground": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Foreground",
+          "type": "string"
+        },
+        "muted": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Muted",
+          "type": "string"
+        }
+      },
+      "required": [
+        "primary",
+        "secondary",
+        "background",
+        "foreground",
+        "muted"
+      ],
+      "title": "PaletteTone",
+      "type": "object"
+    },
+    "ReferencePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "hero_slot_id": {
+          "title": "Hero Slot Id",
+          "type": "string"
+        },
+        "condition_non_hero_slots_on_hero": {
+          "title": "Condition Non Hero Slots On Hero",
+          "type": "boolean"
+        },
+        "allow_user_reference_conditioning": {
+          "title": "Allow User Reference Conditioning",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "hero_slot_id",
+        "condition_non_hero_slots_on_hero",
+        "allow_user_reference_conditioning"
+      ],
+      "title": "ReferencePolicy",
+      "type": "object"
+    },
+    "Slot": {
+      "additionalProperties": false,
+      "properties": {
+        "slot_id": {
+          "title": "Slot Id",
+          "type": "string"
+        },
+        "ordinal": {
+          "title": "Ordinal",
+          "type": "integer"
+        },
+        "page": {
+          "title": "Page",
+          "type": "string"
+        },
+        "route": {
+          "$ref": "#/$defs/SlotRoute"
+        },
+        "section": {
+          "$ref": "#/$defs/SlotSection"
+        },
+        "slot_kind": {
+          "enum": [
+            "hero",
+            "section_accent",
+            "card",
+            "og",
+            "portrait",
+            "background"
+          ],
+          "title": "Slot Kind",
+          "type": "string"
+        },
+        "intent": {
+          "minLength": 8,
+          "title": "Intent",
+          "type": "string"
+        },
+        "copy_context": {
+          "$ref": "#/$defs/SlotCopyContext"
+        },
+        "subject": {
+          "$ref": "#/$defs/SlotSubject"
+        },
+        "camera": {
+          "$ref": "#/$defs/SlotCamera"
+        },
+        "lighting_mood": {
+          "$ref": "#/$defs/SlotLightingMood"
+        },
+        "layout": {
+          "$ref": "#/$defs/SlotLayout"
+        },
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "provider_hint": {
+          "anyOf": [
+            {
+              "enum": [
+                "openai_image",
+                "google_nano_banana"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Hint"
+        },
+        "condition_on_slot_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Condition On Slot Id"
+        }
+      },
+      "required": [
+        "slot_id",
+        "ordinal",
+        "page",
+        "route",
+        "section",
+        "slot_kind",
+        "intent",
+        "copy_context",
+        "subject",
+        "camera",
+        "lighting_mood",
+        "layout",
+        "count"
+      ],
+      "title": "Slot",
+      "type": "object"
+    },
+    "SlotCamera": {
+      "additionalProperties": false,
+      "properties": {
+        "framing": {
+          "enum": [
+            "wide",
+            "medium",
+            "close",
+            "aerial"
+          ],
+          "title": "Framing",
+          "type": "string"
+        },
+        "angle": {
+          "enum": [
+            "eye-level",
+            "low",
+            "high"
+          ],
+          "title": "Angle",
+          "type": "string"
+        },
+        "lens_feel": {
+          "enum": [
+            "24mm",
+            "35mm",
+            "50mm",
+            "85mm",
+            "unspecified"
+          ],
+          "title": "Lens Feel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "framing",
+        "angle",
+        "lens_feel"
+      ],
+      "title": "SlotCamera",
+      "type": "object"
+    },
+    "SlotCopyContext": {
+      "additionalProperties": false,
+      "properties": {
+        "page_h1": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page H1"
+        },
+        "section_heading": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section Heading"
+        },
+        "body_excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body Excerpt"
+        },
+        "cta_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cta Label"
+        }
+      },
+      "title": "SlotCopyContext",
+      "type": "object"
+    },
+    "SlotDimensions": {
+      "additionalProperties": false,
+      "properties": {
+        "w": {
+          "minimum": 1,
+          "title": "W",
+          "type": "integer"
+        },
+        "h": {
+          "minimum": 1,
+          "title": "H",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "w",
+        "h"
+      ],
+      "title": "SlotDimensions",
+      "type": "object"
+    },
+    "SlotLayout": {
+      "additionalProperties": false,
+      "properties": {
+        "aspect_ratio": {
+          "title": "Aspect Ratio",
+          "type": "string"
+        },
+        "dimensions": {
+          "$ref": "#/$defs/SlotDimensions"
+        },
+        "safe_area": {
+          "$ref": "#/$defs/SlotSafeArea"
+        },
+        "overlay_text_risk": {
+          "title": "Overlay Text Risk",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "aspect_ratio",
+        "dimensions",
+        "safe_area",
+        "overlay_text_risk"
+      ],
+      "title": "SlotLayout",
+      "type": "object"
+    },
+    "SlotLightingMood": {
+      "additionalProperties": false,
+      "properties": {
+        "mood_tokens": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Mood Tokens",
+          "type": "array"
+        },
+        "contrast": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Contrast",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contrast"
+      ],
+      "title": "SlotLightingMood",
+      "type": "object"
+    },
+    "SlotPeoplePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "faces_allowed": {
+          "title": "Faces Allowed",
+          "type": "boolean"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "faces_allowed"
+      ],
+      "title": "SlotPeoplePolicy",
+      "type": "object"
+    },
+    "SlotRoute": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "template": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Template"
+        },
+        "target_keyword": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Keyword"
+        }
+      },
+      "title": "SlotRoute",
+      "type": "object"
+    },
+    "SlotSafeArea": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "all"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "inset_pct": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Inset Pct",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mode",
+        "inset_pct"
+      ],
+      "title": "SlotSafeArea",
+      "type": "object"
+    },
+    "SlotSection": {
+      "additionalProperties": false,
+      "properties": {
+        "section_type": {
+          "title": "Section Type",
+          "type": "string"
+        },
+        "section_instance_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section Instance Id"
+        }
+      },
+      "required": [
+        "section_type"
+      ],
+      "title": "SlotSection",
+      "type": "object"
+    },
+    "SlotSubject": {
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "title": "Primary",
+          "type": "string"
+        },
+        "setting": {
+          "title": "Setting",
+          "type": "string"
+        },
+        "props": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Props",
+          "type": "array"
+        },
+        "people_policy": {
+          "$ref": "#/$defs/SlotPeoplePolicy"
+        }
+      },
+      "required": [
+        "primary",
+        "setting",
+        "people_policy"
+      ],
+      "title": "SlotSubject",
+      "type": "object"
+    },
+    "StyleProfileHint": {
+      "additionalProperties": false,
+      "properties": {
+        "lighting": {
+          "title": "Lighting",
+          "type": "string"
+        },
+        "camera_language": {
+          "default": "",
+          "title": "Camera Language",
+          "type": "string"
+        },
+        "composition_rules": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Composition Rules",
+          "type": "array"
+        },
+        "color_grading": {
+          "default": "",
+          "title": "Color Grading",
+          "type": "string"
+        },
+        "texture": {
+          "default": "",
+          "title": "Texture",
+          "type": "string"
+        },
+        "era_mood": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Era Mood"
+        },
+        "do_not": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Do Not",
+          "type": "array"
+        },
+        "must_include": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Must Include",
+          "type": "array"
+        }
+      },
+      "required": [
+        "lighting"
+      ],
+      "title": "StyleProfileHint",
+      "type": "object"
+    },
+    "Typography": {
+      "additionalProperties": false,
+      "properties": {
+        "sans": {
+          "title": "Sans",
+          "type": "string"
+        },
+        "heading": {
+          "title": "Heading",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sans",
+        "heading"
+      ],
+      "title": "Typography",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Authoritative Payload v1.0 schema (ADR-0010).",
+  "properties": {
+    "payload_version": {
+      "const": "1.0",
+      "title": "Payload Version",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "minLength": 8,
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "site_id": {
+      "format": "uuid4",
+      "title": "Site Id",
+      "type": "string"
+    },
+    "agent_run_id": {
+      "format": "uuid4",
+      "title": "Agent Run Id",
+      "type": "string"
+    },
+    "callback_url": {
+      "format": "uri",
+      "maxLength": 2083,
+      "minLength": 1,
+      "title": "Callback Url",
+      "type": "string"
+    },
+    "business": {
+      "$ref": "#/$defs/Business"
+    },
+    "location": {
+      "$ref": "#/$defs/Location"
+    },
+    "brand_voice": {
+      "$ref": "#/$defs/BrandVoice"
+    },
+    "brand_visual": {
+      "$ref": "#/$defs/BrandVisual"
+    },
+    "style_profile_hint": {
+      "$ref": "#/$defs/StyleProfileHint"
+    },
+    "pack": {
+      "$ref": "#/$defs/Pack"
+    },
+    "slots": {
+      "items": {
+        "$ref": "#/$defs/Slot"
+      },
+      "minItems": 1,
+      "title": "Slots",
+      "type": "array"
+    }
+  },
+  "required": [
+    "payload_version",
+    "idempotency_key",
+    "site_id",
+    "agent_run_id",
+    "callback_url",
+    "business",
+    "location",
+    "brand_voice",
+    "brand_visual",
+    "style_profile_hint",
+    "pack",
+    "slots"
+  ],
+  "title": "PayloadV1",
+  "type": "object"
+}

@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arthor-image-service"
+version = "0.1.0"
+description = "Arthor image generation and asset-pack HTTP service"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi",
+    "python-multipart",
+    "pydantic>=2",
+    "pydantic-settings",
+    "asyncpg",
+    "httpx",
+    "aiobotocore",
+    "jinja2",
+    "openai",
+    "google-genai",
+    "Pillow",
+    "python-dotenv",
+    "uvicorn[standard]",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "mypy",
+    "moto[s3]",
+]
+
+[project.scripts]
+arthor-image-service = "app.main:run"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["slices", "tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+packages = ["app"]

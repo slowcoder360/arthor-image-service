@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="htmx-config" content='{"scrollIntoViewOnBoost":false}' />
+  <meta name="csrf-token" content="{{ csrf_token }}" />
+  <title>{% block title %}Inspector{% endblock %} — arthor-image</title>
+  <link rel="stylesheet" href="/inspector/static/inspector.css" />
+  <script src="/inspector/static/htmx.min.js" defer></script>
+</head>
+<body
+  hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+>
+  <header class="topnav">
+    <strong class="brand">arthor inspector</strong>
+    <nav>
+      <a href="/inspector/runs">Runs</a>
+      <a href="/inspector/cost">Cost</a>
+    </nav>
+  </header>
+  <main id="inspector-main" class="main">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
