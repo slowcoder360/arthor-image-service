@@ -1,10 +1,12 @@
 # Canonical arthor-systemmap manifest (JSON Schema: arthor-systemmap/schema/system.schema.json).
 # Validate: cd arthor-systemmap && npm run validate:manifest -- ../arthor-image-service/system.yaml
 id: arthor-image-service
-name: Arthor Image Service
-kind: fastapi
+name: arthor-image-service
+kind: service
+language: python
+runtime: fastapi
 repo: https://github.com/slowcoder360/arthor-image-service
-owners: [slowcoder360]
+owners: [justin, slowcoder360]
 languages: [python]
 ops_hints:
   github: slowcoder360/arthor-image-service
@@ -43,10 +45,31 @@ exposes:
     - path: /inspector/runs
       method: GET
       desc: Paginated HTMX run list with optional run_type filter.
+    - path: /inspector/cost
+      method: GET
+      desc: >-
+        Cost rollups (per run, day, site, provider, slot type) with optional date/site/provider filters.
+    - path: "/inspector/runs/{run_id}/grid"
+      method: GET
+      desc: HTMX pack-consistency grid partial for a run.
     - path: "/inspector/runs/{run_id}"
       method: GET
       desc: >-
         Run detail with payload, style profile, tool_calls, and assets grid.
+    - path: "/inspector/slots/{slot_id}/variants"
+      method: GET
+      desc: HTMX slot variants partial (query run_id anchors the lineage).
+    - path: "/inspector/slots/{asset_id}/regenerate"
+      method: POST
+      desc: >-
+        CSRF form POST; signs and POSTs to same-process /images/regenerate-slot (iteration).
+    - path: "/inspector/assets/{asset_id}/unsupersede"
+      method: POST
+      desc: CSRF form POST to unsupersede an asset and return updated variants partial.
+    - path: "/inspector/assets/{asset_id}/soft-delete"
+      method: POST
+      desc: >-
+        CSRF form POST; requires reason; marks uploaded asset superseded with soft_delete metadata.
   webhooks:
     - path: /images/asset-pack/generate
       desc: arthor-ai site-build dispatch (X-Arthor-Signature HMAC raw body).
