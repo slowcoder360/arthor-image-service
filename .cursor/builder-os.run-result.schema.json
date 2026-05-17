@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://builder-os.dev/schemas/run-result.schema.json",
+  "title": "builder-os Run Result",
+  "description": "Structured result emitted by every dispatch, every review, and the e2e-acceptance pass. Lives at scratch/run-results/<id>.json.",
+  "type": "object",
+  "required": ["kind", "id", "timestamp", "status", "summary"],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["dispatch", "review", "e2e", "intake", "research"],
+      "description": "Which phase produced this result"
+    },
+    "id": {
+      "type": "string",
+      "description": "Slice id, project name, or other identifier this result is keyed by"
+    },
+    "issue_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "For tracker-backed slices (GitHub issues, Linear tickets, etc.): URL of the originating issue. Lets reviewers jump from a run-result back to the source spec without inferring from `id`."
+    },
+    "pr_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "For slices that ship via a pull request opened by `pr-from-slice`: URL of the PR. Lets reviewers jump from a run-result straight to the merged (or in-flight) PR. Distinct from `issue_url` so both can coexist."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "fail", "partial", "blocked", "escalate"]
+    },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable one-paragraph summary"
+    },
+    "branch": {
+      "type": "string",
+      "description": "For dispatch results: the branch the subagent committed to"
+    },
+    "commits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sha"],
+        "properties": {
+          "sha": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "subagent": {
+      "type": "object",
+      "description": "For dispatch results: which subagent ran",
+      "properties": {
+        "type": { "type": "string", "enum": ["best-of-n-runner", "generalPurpose", "explore", "shell"] },
+        "model": { "type": "string" },
+        "completion_signal": { "type": "string" }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "properties": {
+        "command": { "type": "string" },
+        "passed": { "type": "integer" },
+        "failed": { "type": "integer" },
+        "skipped": { "type": "integer" }
+      }
+    },
+    "files_changed": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "files_created": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "out_of_scope_violations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files modified that were listed under paths_out_of_scope"
+    },
+    "review_findings": {
+      "type": "array",
+      "description": "For review results: per-finding entries",
+      "items": {
+        "type": "object",
+        "required": ["severity", "summary"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["critical", "warning", "info"] },
+          "source": { "type": "string", "description": "code-review-graph | log-reader-mcp | chrome-devtools | manual" },
+          "summary": { "type": "string" },
+          "location": { "type": "string", "description": "file:line or URL" }
+        }
+      }
+    },
+    "duration_ms": {
+      "type": "integer"
+    },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

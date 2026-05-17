@@ -1,0 +1,10 @@
+{
+  "subagent_runtime_default": "best-of-n-runner",
+  "subagent_model_default": "composer-2-fast",
+  "completion_signal": "<builder-os>COMPLETE</builder-os>",
+  "max_parallel_builders": 4,
+  "tests_first_strict": true,
+  "review_mcps": ["code-review-graph", "log-reader-mcp", "chrome-devtools"],
+  "foundation_synced_at": "2026-05-17T05:32:30Z",
+  "foundation_source": "~/builder-os/foundation"
+}

@@ -1,0 +1,1 @@
+/Users/justinmendez/arthor-brainstorm/synthesis/gtm-heygen-direction.md
