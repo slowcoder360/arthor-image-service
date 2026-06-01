@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any
 
@@ -65,7 +66,7 @@ async def insert_pending_run(
             RETURNING id
             """,
             run_type,
-            meta,
+            json.dumps(meta),
             parent_run_id,
         )
     assert row is not None
@@ -103,7 +104,7 @@ async def update_run_status(
                     """,
                     run_id,
                     status,
-                    meta_patch,
+                    json.dumps(meta_patch),
                 )
             else:
                 await conn.execute(
@@ -126,7 +127,7 @@ async def update_run_status(
                 """,
                 run_id,
                 status,
-                meta_patch,
+                json.dumps(meta_patch),
             )
         else:
             await conn.execute(

@@ -256,7 +256,7 @@ async def _emit_callback(
 
     import httpx
 
-    async def factory() -> Any:
+    def factory() -> Any:
         return httpx.AsyncClient(timeout=120.0)
 
     await send_completion_callback(
@@ -566,15 +566,22 @@ async def run_in_background(
             pack_status = "partial"
 
         duration_seconds = round(time.perf_counter() - t0_mono, 3)
-        await _emit_callback(
-            services,
-            payload=payload,
-            run_id=run_id,
-            duration_seconds=duration_seconds,
-            asset_summaries=summaries,
-            pack_status=pack_status,
-            total_cost_cents=total_cost_cents,
-        )
+        try:
+            await _emit_callback(
+                services,
+                payload=payload,
+                run_id=run_id,
+                duration_seconds=duration_seconds,
+                asset_summaries=summaries,
+                pack_status=pack_status,
+                total_cost_cents=total_cost_cents,
+            )
+        except Exception:
+            logger.warning(
+                "completion callback failed (non-fatal) run_id=%s",
+                run_id,
+                exc_info=True,
+            )
 
     except BaseException as exc:
         logger.exception("run_in_background failed run_id=%s", run_id)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any
 
@@ -85,8 +86,8 @@ async def insert_tool_call(
             """,
             run_id,
             tool_name,
-            trimmed_args,
-            trimmed_result,
+            json.dumps(trimmed_args),
+            json.dumps(trimmed_result),
             status,
             latency_ms,
             cost_cents,

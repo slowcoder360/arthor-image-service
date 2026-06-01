@@ -31,7 +31,10 @@ async def roll_up_cost(pool: asyncpg.pool.Pool, run_id: uuid.UUID) -> int:
                 """,
                 run_id,
             )
-        except asyncpg.exceptions.UndefinedColumnError:
+        except (
+            asyncpg.exceptions.UndefinedColumnError,
+            asyncpg.exceptions.GroupingError,
+        ):
             row = await conn.fetchrow(
                 """
                 UPDATE agent_runs

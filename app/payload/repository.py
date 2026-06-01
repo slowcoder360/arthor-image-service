@@ -42,7 +42,7 @@ async def insert_payload_record(
                 """,
                 agent_run_id,
                 payload_version,
-                blob,
+                canonical,
                 digest,
                 idempotency_key,
                 source,

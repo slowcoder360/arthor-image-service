@@ -156,7 +156,7 @@ class GoogleNanoBananaProvider:
         aspect = _aspect_ratio_for_dims(w, h)
         config = types.GenerateContentConfig(
             response_modalities=["IMAGE"],
-            image_config=types.ImageConfig(aspect_ratio=aspect, output_mime_type="image/png"),
+            image_config=types.ImageConfig(aspect_ratio=aspect),
         )
         if seed is not None:
             config.seed = seed  # Verified google-genai GenerateContentConfig supports seed.
