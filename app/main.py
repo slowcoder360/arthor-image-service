@@ -38,13 +38,15 @@ def configure_logging() -> None:
     )
 
 
-async def ensure_runtime_ready(app: FastAPI) -> None:
+async def ensure_runtime_ready(app: FastAPI, *, require_pool: bool = True) -> None:
     """Idempotent app startup: services + optional DB pool.
 
     Uvicorn sends ASGI ``lifespan`` events; pure HTTP in-process clients (for example
     ``httpx.ASGITransport``) do not. The HTTP middleware invokes this on each request
     so ``app.state.services`` — and ``services.pool`` when ``database_url`` is set —
     match production behaviour without a second code path for tests.
+
+    ``require_pool=False`` skips asyncpg connect (used by ``GET /healthz`` liveness).
     """
     global _missing_database_url_logged
     services = getattr(app.state, "services", None)
@@ -52,6 +54,9 @@ async def ensure_runtime_ready(app: FastAPI) -> None:
         configure_logging()
         app.state.services = RuntimeServices(settings=Settings())
         services = app.state.services
+    elif os.environ.get("PYTEST_CURRENT_TEST"):
+        # pytest monkeypatch/chdir must re-read Settings; app.state persists across tests.
+        services.settings = Settings()
 
     assert services is not None
     settings = services.settings
@@ -60,6 +65,8 @@ async def ensure_runtime_ready(app: FastAPI) -> None:
         services.asset_pack_semaphore = asyncio.Semaphore(settings.max_concurrent_packs)
 
     if settings.database_url:
+        if not require_pool:
+            return
         try:
             running_loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -158,6 +165,9 @@ async def ensure_runtime_services(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
+    if request.url.path == "/healthz":
+        await ensure_runtime_ready(request.app, require_pool=False)
+        return await call_next(request)
     await ensure_runtime_ready(request.app)
     return await call_next(request)
 

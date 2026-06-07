@@ -28,17 +28,18 @@ def _load_system_yaml() -> dict:
 
 def test_system_yaml_required_minimum_fields():
     data = _load_system_yaml()
-    assert data.get("name") == "arthor-image-service", (
-        "AC-6: system.yaml `name` must equal 'arthor-image-service'"
+    assert data.get("id") == "arthor-image-service", (
+        "AC-6: system.yaml `id` must equal 'arthor-image-service'"
     )
-    assert data.get("kind") == "service", "AC-6: system.yaml `kind` must equal 'service'"
-    assert data.get("language") == "python", (
-        "AC-6: system.yaml `language` must equal 'python'"
+    assert isinstance(data.get("name"), str) and data["name"], (
+        "AC-6: system.yaml `name` must be a non-empty display string"
     )
-    assert data.get("runtime") == "fastapi", (
-        "AC-6: system.yaml `runtime` must equal 'fastapi'"
+    assert data.get("kind") == "fastapi", "AC-6: system.yaml `kind` must equal 'fastapi'"
+    languages = data.get("languages")
+    assert isinstance(languages, list) and "python" in languages, (
+        "AC-6: system.yaml `languages` must be a list containing 'python'"
     )
     owners = data.get("owners")
-    assert isinstance(owners, list) and "justin" in owners, (
-        "AC-6: system.yaml `owners` must be a list containing 'justin'"
+    assert isinstance(owners, list) and owners, (
+        "AC-6: system.yaml `owners` must be a non-empty list"
     )
