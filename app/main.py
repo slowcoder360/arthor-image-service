@@ -18,6 +18,7 @@ from app.config import Settings
 from app.inspector.router import router as inspector_router
 from app.jobs.cold_storage import cold_storage_worker
 from app.routes.asset_pack import router as asset_pack_router
+from app.routes.hero_candidates import router as hero_candidates_router
 from app.routes.regenerate_slot import router as regenerate_slot_router
 from app.routes.style_preview import router as style_preview_router
 from app.runtime import RuntimeServices
@@ -142,6 +143,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 app = FastAPI(title="arthor-image-service v1", lifespan=lifespan)
 app.include_router(asset_pack_router)
+app.include_router(hero_candidates_router)
 app.include_router(style_preview_router)
 app.include_router(regenerate_slot_router)
 _INSPECTOR_STATIC_DIR = Path(__file__).resolve().parent / "inspector" / "static"

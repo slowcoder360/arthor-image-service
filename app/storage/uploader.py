@@ -76,6 +76,25 @@ async def upload_asset(
     return r2_key
 
 
+async def upload_asset_at_key(
+    r2: HasBucketAndClient,
+    *,
+    image_bytes: bytes,
+    r2_key: str,
+    content_type: str,
+    object_metadata: AssetObjectMetadata,
+) -> str:
+    """Upload bytes to an explicit object key (hero-candidates temp prefix)."""
+    await r2.client.put_object(
+        Bucket=r2.bucket,
+        Key=r2_key,
+        Body=image_bytes,
+        ContentType=content_type,
+        Metadata=object_metadata.as_metadata_dict(),
+    )
+    return r2_key
+
+
 def public_url_for(settings: HasR2UrlParts, r2_key: str) -> str:
     """Compose a v1 public URL (public-bucket assumption)."""
     base = settings.r2_endpoint_url or ""

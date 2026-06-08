@@ -7,7 +7,7 @@ import hmac
 
 from fastapi import HTTPException, Request
 
-__all__ = ["require_hmac", "sign_body", "verify_signature"]
+__all__ = ["require_hmac", "require_hmac_get", "sign_body", "verify_signature"]
 
 
 def sign_body(secret: str, body: bytes) -> str:
@@ -39,6 +39,25 @@ async def require_hmac(req: Request) -> bytes:
         raise HTTPException(status_code=503, detail="hmac_secret_unset")
     if len(body) == 0:
         raise HTTPException(status_code=400, detail="empty_body")
+
+    header_value = req.headers.get("X-Arthor-Signature")
+    if not verify_signature(secret, body, header_value):
+        raise HTTPException(status_code=401, detail="invalid_signature")
+
+    return body
+
+
+async def require_hmac_get(req: Request) -> bytes:
+    """Verify HMAC for GET poll routes (empty body signed as ``b\"\"``)."""
+    body = await req.body()
+    req.state.raw_body = body
+
+    services = getattr(req.app.state, "services", None)
+    settings = getattr(services, "settings", None) if services else None
+    secret = getattr(settings, "fastapi_arthor_shared_secret", None)
+
+    if secret is None:
+        raise HTTPException(status_code=503, detail="hmac_secret_unset")
 
     header_value = req.headers.get("X-Arthor-Signature")
     if not verify_signature(secret, body, header_value):

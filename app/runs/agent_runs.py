@@ -13,6 +13,7 @@ _ALLOWED_RUN_TYPES = frozenset(
         "image_pack_generation",
         "image_slot_regenerate",
         "image_style_preview",
+        "hero_candidates_generation",
     }
 )
 _ALLOWED_STATUS = frozenset({"running", "ok", "failed"})
