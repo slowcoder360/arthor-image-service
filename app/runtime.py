@@ -17,4 +17,5 @@ class RuntimeServices:
     r2: object | None = None
     asset_pack_semaphore: object | None = None
     providers: dict[str, object] | None = None
+    prompt_improver: object | None = None
     background_tasks: list[asyncio.Task[object]] = field(default_factory=list)

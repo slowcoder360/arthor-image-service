@@ -13,10 +13,16 @@ from pydantic import ValidationError
 
 from app.auth.hmac import require_hmac, require_hmac_get
 from app.orchestration.hero_worker import run_hero_candidates_in_background
-from app.payload.hero_models import HeroCandidatesRequest, hero_request_to_payload_v1
+from app.payload.hero_models import (
+    HeroCandidatesRequest,
+    build_hero_copy_overlay_metadata,
+    hero_request_to_payload_v1,
+)
 from app.payload.idempotency import lookup_idempotency_key
 from app.payload.repository import IdempotencyConflict, insert_raw_payload_record
 from app.runs.agent_runs import insert_pending_run, update_run_status
+from app.storage.uploader import browser_url_for
+from app.style.prompt_improver import finalize_hero_triad_prompts
 from app.style.resolver import resolve_style_profile, style_profile_to_metadata
 
 router = APIRouter()
@@ -65,7 +71,7 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
 
     maybe_existing = await lookup_idempotency_key(pool, hero_req.idempotency_key)
     if maybe_existing is not None:
-        poll = await _build_poll_response(pool, maybe_existing)
+        poll = await _build_poll_response(pool, maybe_existing, services.settings)
         return JSONResponse(
             status_code=200,
             content={
@@ -93,13 +99,13 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
             pool,
             agent_run_id=run_id,
             payload=hero_req.model_dump(mode="json"),
-            payload_version="hero_candidates.1",
+            payload_version=hero_req.payload_version,
             idempotency_key=hero_req.idempotency_key,
         )
     except IdempotencyConflict:
         other_id = await lookup_idempotency_key(pool, hero_req.idempotency_key)
         if other_id is not None:
-            poll = await _build_poll_response(pool, other_id)
+            poll = await _build_poll_response(pool, other_id, services.settings)
             return JSONResponse(
                 status_code=200,
                 content={
@@ -111,11 +117,22 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
         raise
 
     style_profile = await resolve_style_profile(payload)
+    compiled_prompts = await finalize_hero_triad_prompts(services, hero_req, style_profile)
+    improver_stats = getattr(services, "_last_hero_improver_stats", None)
+    metadata_patch: dict[str, Any] = {
+        "style_profile": style_profile_to_metadata(style_profile),
+        "hero_provider_prompts": [p.to_dict() for p in compiled_prompts],
+        "hero_prompt_compiler_version": compiled_prompts[0].compiler_version if compiled_prompts else None,
+        "hero_copy_overlay": build_hero_copy_overlay_metadata(hero_req),
+        "payload_version": hero_req.payload_version,
+    }
+    if improver_stats:
+        metadata_patch["hero_prompt_improver_stats"] = improver_stats
     await update_run_status(
         pool,
         run_id,
         status="running",
-        metadata_patch={"style_profile": style_profile_to_metadata(style_profile)},
+        metadata_patch=metadata_patch,
     )
 
     asyncio.create_task(
@@ -134,10 +151,10 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
     )
 
 
-async def _build_poll_response(pool: Any, run_id: uuid.UUID) -> dict[str, Any]:
+async def _build_poll_response(pool: Any, run_id: uuid.UUID, settings: Any) -> dict[str, Any]:
     async with pool.acquire() as conn:
         run_row = await conn.fetchrow(
-            "SELECT status, finished_at FROM agent_runs WHERE id = $1",
+            "SELECT status, finished_at, metadata FROM agent_runs WHERE id = $1",
             run_id,
         )
         if run_row is None:
@@ -145,7 +162,7 @@ async def _build_poll_response(pool: Any, run_id: uuid.UUID) -> dict[str, Any]:
 
         assets = await conn.fetch(
             """
-            SELECT r2_url, status, metadata
+            SELECT r2_url, r2_key, status, metadata
             FROM external_media_assets
             WHERE agent_run_id = $1
             ORDER BY created_at ASC
@@ -166,9 +183,14 @@ async def _build_poll_response(pool: Any, run_id: uuid.UUID) -> dict[str, Any]:
             md = json.loads(md)
         if not isinstance(md, dict):
             md = {}
+        r2_key_val = row.get("r2_key")
         entry: dict[str, Any] = {
             "variant_index": md.get("variant_index"),
-            "url": str(row["r2_url"]),
+            "url": browser_url_for(
+                settings,
+                r2_key=str(r2_key_val) if r2_key_val else None,
+                stored_url=str(row["r2_url"]) if row["r2_url"] else None,
+            ),
         }
         if md.get("tone_angle") is not None:
             entry["tone_angle"] = md["tone_angle"]
@@ -180,11 +202,21 @@ async def _build_poll_response(pool: Any, run_id: uuid.UUID) -> dict[str, Any]:
 
     urls.sort(key=lambda u: (u.get("variant_index") is None, u.get("variant_index", 0)))
 
-    return {
+    run_md = run_row["metadata"]
+    if isinstance(run_md, str):
+        run_md = json.loads(run_md)
+    if not isinstance(run_md, dict):
+        run_md = {}
+    error = run_md.get("error") if poll_status == "failed" else None
+
+    out: dict[str, Any] = {
         "agent_run_id": str(run_id),
         "status": poll_status,
         "urls": urls,
     }
+    if error:
+        out["error"] = error
+    return out
 
 
 @router.get("/images/hero-candidates/{run_id}")
@@ -195,5 +227,5 @@ async def get_hero_candidates_status(run_id: uuid.UUID, request: Request) -> JSO
     if pool is None:
         return JSONResponse(status_code=503, content={"detail": "database_unavailable"})
 
-    body = await _build_poll_response(pool, run_id)
+    body = await _build_poll_response(pool, run_id, services.settings)
     return JSONResponse(status_code=200, content=body)

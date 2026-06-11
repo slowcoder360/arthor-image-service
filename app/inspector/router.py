@@ -26,6 +26,8 @@ from starlette.responses import Response
 from app.auth.inspector_token import issue_inspector_cookie, require_inspector_token
 from app.auth.sign import sign_outbound
 from app.inspector import cost as cost_rollups
+from app.inspector import hero_ab
+from app.providers.image_model_costs import format_cost_table_markdown
 from app.inspector import queries
 from app.inspector.csrf import CSRF_COOKIE_NAME, issue_csrf_token, verify_csrf_token
 from app.storage import UnsupersedeUnavailable, unsupersede_asset
@@ -44,8 +46,8 @@ def inspector_http_client(base_url: str) -> httpx.AsyncClient:
 
 
 def _inspector_internal_api_base() -> str:
-    port = os.environ.get("PORT") or os.environ.get("UVICORN_PORT") or "8000"
-    return f"http://localhost:{port}"
+    port = os.environ.get("PORT") or os.environ.get("UVICORN_PORT") or "8010"
+    return f"http://127.0.0.1:{port}"
 
 
 def _render(
@@ -552,6 +554,251 @@ async def inspector_unsupersede(
         "variants_grid.html",
         {"variants": variants},
     )
+
+
+_HERO_AB_SCHEMA_HELP = """{
+  "site_id": "uuid",
+  "idempotency_key": "string (min 8)",
+  "business": { "site_name", "industry", "icp_summary", "value_prop", ... },
+  "location": { "mode": "local|national|remote", "country", "city?", "region?", ... },
+  "brand_voice": { "tone", "notes[]", "style_direction", ... },
+  "brand_visual": { "palette": { "light"|"dark": { primary, secondary, ... } }, ... },
+  "style_profile_hint": { "lighting", "camera_language", "do_not[]", ... },
+  "variants": [
+    { "tone_angle": "search|story|offer", "headline", "subhead?" },
+    ... exactly 3 entries ...
+  ],
+  "base_seed": 77,
+  "default_provider_hint": "google_nano_banana|openai_image"  // overridden per A/B arm
+}"""
+
+
+def _hero_ab_results_context(
+    *,
+    google_run: uuid.UUID | None,
+    openai_run: uuid.UUID | None,
+    google_body: dict[str, Any] | None,
+    openai_body: dict[str, Any] | None,
+    google_prompts: list[dict[str, Any]] | None = None,
+    openai_prompts: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    def _urls(body: dict[str, Any] | None) -> list[dict[str, Any]]:
+        if not body:
+            return []
+        raw = body.get("urls") or []
+        return [u for u in raw if isinstance(u, dict)]
+
+    return {
+        "google_run": str(google_run) if google_run else "",
+        "openai_run": str(openai_run) if openai_run else "",
+        "google_status": (google_body or {}).get("status"),
+        "openai_status": (openai_body or {}).get("status"),
+        "google_error": (google_body or {}).get("error"),
+        "openai_error": (openai_body or {}).get("error"),
+        "google_urls": _urls(google_body),
+        "openai_urls": _urls(openai_body),
+        "google_prompts": google_prompts or [],
+        "openai_prompts": openai_prompts or [],
+    }
+
+
+@_protected.get("/hero-ab")
+async def hero_ab_page(
+    request: Request,
+    load_latest: bool = False,
+    google_run: uuid.UUID | None = None,
+    openai_run: uuid.UUID | None = None,
+    poll: bool = False,
+    error: str | None = None,
+) -> Response:
+    services = getattr(request.app.state, "services", None)
+    pool = getattr(services, "pool", None) if services else None
+
+    payload_obj: dict[str, Any] | None = None
+    if load_latest and pool is not None:
+        payload_obj = await hero_ab.fetch_latest_hero_payload(pool)
+    if payload_obj is None:
+        payload_obj = hero_ab.default_hero_payload()
+
+    payload_text = json.dumps(payload_obj, indent=2, sort_keys=True)
+
+    recent_rows: list[dict[str, Any]] = []
+    if pool is not None:
+        for rec in await hero_ab.fetch_recent_hero_runs(pool):
+            recent_rows.append(
+                {
+                    "id": rec["id"],
+                    "status": rec["status"],
+                    "started_at": rec["started_at"],
+                    "cost_cents": rec["cost_cents"],
+                    "provider_label": await hero_ab.run_provider_label(pool, rec["id"]),
+                }
+            )
+
+    google_body: dict[str, Any] | None = None
+    openai_body: dict[str, Any] | None = None
+    google_prompts: list[dict[str, Any]] = []
+    openai_prompts: list[dict[str, Any]] = []
+    if pool is not None:
+        settings = services.settings if services else None
+        if google_run is not None and settings is not None:
+            google_body = await hero_ab.poll_hero_run(pool, google_run, settings)
+            google_prompts = await hero_ab.fetch_run_provider_prompts(pool, google_run)
+        if openai_run is not None and settings is not None:
+            openai_body = await hero_ab.poll_hero_run(pool, openai_run, settings)
+            openai_prompts = await hero_ab.fetch_run_provider_prompts(pool, openai_run)
+
+    results_ctx = _hero_ab_results_context(
+        google_run=google_run,
+        openai_run=openai_run,
+        google_body=google_body,
+        openai_body=openai_body,
+        google_prompts=google_prompts,
+        openai_prompts=openai_prompts,
+    )
+    poll_active = poll and hero_ab.ab_session_needs_polling(
+        google_run=results_ctx["google_run"] or None,
+        openai_run=results_ctx["openai_run"] or None,
+        google_status=results_ctx["google_status"],
+        openai_status=results_ctx["openai_status"],
+    )
+    polling_note = hero_ab.polling_status_note(
+        google_run=results_ctx["google_run"] or None,
+        openai_run=results_ctx["openai_run"] or None,
+        google_status=results_ctx["google_status"],
+        openai_status=results_ctx["openai_status"],
+    )
+
+    return _render(
+        request,
+        "hero_ab.html",
+        {
+            "payload_text": payload_text,
+            "recent_runs": recent_rows,
+            "schema_help": _HERO_AB_SCHEMA_HELP,
+            "image_model_costs": format_cost_table_markdown(),
+            "error": error,
+            "poll_active": poll_active,
+            "polling_note": polling_note,
+            **results_ctx,
+        },
+    )
+
+
+@_protected.get("/hero-ab/poll")
+async def hero_ab_poll(
+    request: Request,
+    google_run: uuid.UUID | None = None,
+    openai_run: uuid.UUID | None = None,
+) -> Response:
+    services = getattr(request.app.state, "services", None)
+    pool = getattr(services, "pool", None) if services else None
+    settings = getattr(services, "settings", None) if services else None
+    if pool is None or settings is None:
+        raise HTTPException(status_code=503, detail="database_unavailable")
+
+    google_body = (
+        await hero_ab.poll_hero_run(pool, google_run, settings)
+        if google_run is not None
+        else None
+    )
+    openai_body = (
+        await hero_ab.poll_hero_run(pool, openai_run, settings)
+        if openai_run is not None
+        else None
+    )
+    google_prompts = (
+        await hero_ab.fetch_run_provider_prompts(pool, google_run)
+        if google_run is not None
+        else []
+    )
+    openai_prompts = (
+        await hero_ab.fetch_run_provider_prompts(pool, openai_run)
+        if openai_run is not None
+        else []
+    )
+    ctx = _hero_ab_results_context(
+        google_run=google_run,
+        openai_run=openai_run,
+        google_body=google_body,
+        openai_body=openai_body,
+        google_prompts=google_prompts,
+        openai_prompts=openai_prompts,
+    )
+    ctx["poll_done"] = not hero_ab.ab_session_needs_polling(
+        google_run=ctx["google_run"] or None,
+        openai_run=ctx["openai_run"] or None,
+        google_status=ctx["google_status"],
+        openai_status=ctx["openai_status"],
+    )
+    ctx["polling_note"] = hero_ab.polling_status_note(
+        google_run=ctx["google_run"] or None,
+        openai_run=ctx["openai_run"] or None,
+        google_status=ctx["google_status"],
+        openai_status=ctx["openai_status"],
+    )
+    return _render_partial(request, "hero_ab_results.html", ctx)
+
+
+@_protected.post("/hero-ab/launch")
+async def hero_ab_launch(
+    request: Request,
+    payload_json: str = Form(...),
+    mode: str = Form(...),
+    csrf_token: str | None = Form(None),
+) -> Response:
+    verify_csrf_token(request, csrf_token)
+    services = getattr(request.app.state, "services", None)
+    settings = getattr(services, "settings", None) if services else None
+    secret = getattr(settings, "fastapi_arthor_shared_secret", None)
+    if not secret:
+        raise HTTPException(status_code=503, detail="hmac_secret_unset")
+
+    base, err = hero_ab.parse_payload_json(payload_json)
+    if base is None:
+        return await hero_ab_page(request, error=err or "invalid payload")
+
+    providers: list[str]
+    if mode == "both":
+        providers = ["google_nano_banana", "openai_image"]
+    elif mode in ("google_nano_banana", "openai_image"):
+        providers = [mode]
+    else:
+        return await hero_ab_page(request, error=f"unknown mode: {mode}")
+
+    api_base = _inspector_internal_api_base()
+    launched: dict[str, uuid.UUID] = {}
+
+    async with inspector_http_client(api_base) as client:
+        for provider in providers:
+            body_obj = hero_ab.payload_for_provider(base, provider)
+            raw = hero_ab.encode_signed_body(body_obj)
+            headers = {
+                "Content-Type": "application/json",
+                **sign_outbound(secret, raw),
+            }
+            api_resp = await client.post(
+                "/images/hero-candidates/generate",
+                content=raw,
+                headers=headers,
+                timeout=60.0,
+            )
+            if api_resp.status_code not in (200, 202):
+                return await hero_ab_page(
+                    request,
+                    error=f"{provider} launch failed ({api_resp.status_code}): {api_resp.text[:200]}",
+                )
+            data = api_resp.json()
+            launched[provider] = uuid.UUID(str(data["agent_run_id"]))
+
+    google_id = launched.get("google_nano_banana")
+    openai_id = launched.get("openai_image")
+    q = "poll=1"
+    if google_id:
+        q += f"&google_run={google_id}"
+    if openai_id:
+        q += f"&openai_run={openai_id}"
+    return RedirectResponse(url=f"/inspector/hero-ab?{q}", status_code=303)
 
 
 @_protected.post("/assets/{asset_id}/soft-delete")

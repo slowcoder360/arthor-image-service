@@ -60,6 +60,11 @@ async def ensure_runtime_ready(app: FastAPI) -> None:
     if getattr(services, "asset_pack_semaphore", None) is None:
         services.asset_pack_semaphore = asyncio.Semaphore(settings.max_concurrent_packs)
 
+    if getattr(services, "prompt_improver", None) is None:
+        from app.style.prompt_improver import build_prompt_improver
+
+        services.prompt_improver = build_prompt_improver(settings)
+
     if settings.database_url:
         try:
             running_loop = asyncio.get_running_loop()

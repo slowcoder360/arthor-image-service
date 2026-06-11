@@ -1,0 +1,73 @@
+<h2>Results</h2>
+{% if not google_run and not openai_run %}
+<p class="muted">Launch a run to compare providers here.</p>
+{% else %}
+{% if polling_note %}
+<p class="muted polling-note">{{ polling_note }}</p>
+{% endif %}
+{% set terminal = ['complete', 'partial', 'failed'] %}
+{% set all_done = poll_done if poll_done is defined else ((not google_run or google_status in terminal) and (not openai_run or openai_status in terminal)) %}
+<div {% if all_done %}data-poll-done="1"{% endif %} class="ab-compare">
+  {% if google_run %}
+  <div class="ab-arm" {% if google_status in terminal %}data-arm-done="1"{% endif %}>
+    <h3>Google <span class="badge {% if google_status == 'complete' %}ok{% elif google_status == 'failed' %}fail{% else %}pending{% endif %}">{{ google_status or '—' }}</span></h3>
+    <p class="muted"><code>{{ google_run }}</code></p>
+    {% if google_prompts %}
+    <details class="ab-prompts">
+      <summary>Compiled prompts (pre-image)</summary>
+      {% for p in google_prompts %}
+      <pre class="prompt-block">{{ p.tone_angle or p.variant_index }}: {{ p.prompt }}</pre>
+      {% endfor %}
+    </details>
+    {% endif %}
+    {% if google_urls %}
+    <div class="ab-triad">
+      {% for u in google_urls %}
+      <figure>
+        <figcaption>{{ u.tone_angle or u.variant_index }} — {{ u.headline or '' }}</figcaption>
+        <a href="{{ u.url }}" target="_blank" rel="noopener">
+          <img src="{{ u.url }}" alt="variant {{ u.variant_index }}" class="hero-thumb" loading="lazy" />
+        </a>
+      </figure>
+      {% endfor %}
+    </div>
+    {% elif google_status == 'failed' %}
+    <p class="banner error">{% if google_error %}{{ google_error }}{% else %}Run failed — check server logs / asset rows.{% endif %}</p>
+    {% else %}
+    <p class="muted">Generating…</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if openai_run %}
+  <div class="ab-arm" {% if openai_status in terminal %}data-arm-done="1"{% endif %}>
+    <h3>OpenAI <span class="badge {% if openai_status == 'complete' %}ok{% elif openai_status == 'failed' %}fail{% else %}pending{% endif %}">{{ openai_status or '—' }}</span></h3>
+    <p class="muted"><code>{{ openai_run }}</code></p>
+    {% if openai_prompts %}
+    <details class="ab-prompts">
+      <summary>Compiled prompts (pre-image)</summary>
+      {% for p in openai_prompts %}
+      <pre class="prompt-block">{{ p.tone_angle or p.variant_index }}: {{ p.prompt }}</pre>
+      {% endfor %}
+    </details>
+    {% endif %}
+    {% if openai_urls %}
+    <div class="ab-triad">
+      {% for u in openai_urls %}
+      <figure>
+        <figcaption>{{ u.tone_angle or u.variant_index }} — {{ u.headline or '' }}</figcaption>
+        <a href="{{ u.url }}" target="_blank" rel="noopener">
+          <img src="{{ u.url }}" alt="variant {{ u.variant_index }}" class="hero-thumb" loading="lazy" />
+        </a>
+      </figure>
+      {% endfor %}
+    </div>
+    {% elif openai_status == 'failed' %}
+    <p class="banner error">{% if openai_error %}{{ openai_error }}{% else %}Run failed — check server logs / asset rows.{% endif %}</p>
+    {% else %}
+    <p class="muted">Generating…</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}

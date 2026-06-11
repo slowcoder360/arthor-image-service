@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Hero A/B{% endblock %}
+{% block content %}
+<h1>Hero candidates A/B lab</h1>
+<p class="muted">
+  Edit the payload arthor-ai sends to <code>POST /images/hero-candidates/generate</code>,
+  then launch Google vs OpenAI side-by-side. Poll until each arm returns 3 URLs.
+  <em class="muted">Status polling hits this service only (DB read) — not Google/OpenAI.</em>
+</p>
+
+{% if error %}
+<div class="banner error">{{ error }}</div>
+{% endif %}
+
+<div class="ab-layout">
+  <section class="panel ab-editor">
+    <h2>Request payload</h2>
+    <p class="muted">
+      Shape matches arthor-ai <code>heroCandidatesRequestSchema</code>
+      (<code>site_id</code>, <code>business</code>, <code>variants[3]</code>, …).
+      <a href="/inspector/hero-ab?load_latest=1">Load latest from DB</a>
+      · <a href="/inspector/hero-ab">Reset sample</a>
+    </p>
+    <form method="post" action="/inspector/hero-ab/launch" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <textarea name="payload_json" class="json-editor" rows="28" spellcheck="false">{{ payload_text }}</textarea>
+      <div class="toolbar">
+        <button type="submit" name="mode" value="google_nano_banana">Run Google (A)</button>
+        <button type="submit" name="mode" value="openai_image">Run OpenAI (B)</button>
+        <button type="submit" name="mode" value="both">Run A/B both</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel ab-results" id="ab-results">
+    {% include "hero_ab_results.html" %}
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Recent hero runs</h2>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>run_id</th>
+        <th>provider</th>
+        <th>status</th>
+        <th>cost</th>
+        <th>started</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recent_runs %}
+      <tr>
+        <td><code>{{ row.id }}</code></td>
+        <td>{{ row.provider_label }}</td>
+        <td>{{ row.status }}</td>
+        <td>${{ '%.2f' % ((row.cost_cents or 0) / 100.0) }}</td>
+        <td class="muted">{{ row.started_at }}</td>
+        <td>
+          <a href="/inspector/hero-ab?google_run={{ row.id }}">view</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">No hero runs yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<details class="panel">
+  <summary><strong>Image model costs</strong> (1536×1024 hero, reference Jun 2026)</summary>
+  <pre class="json">{{ image_model_costs }}</pre>
+</details>
+
+<details class="panel">
+  <summary><strong>Payload field reference</strong> (arthor-ai → image-service)</summary>
+  <pre class="json">{{ schema_help }}</pre>
+</details>
+
+{% if poll_active %}
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const googleRun = params.get("google_run") || "";
+  const openaiRun = params.get("openai_run") || "";
+  if (!googleRun && !openaiRun) return;
+
+  const MAX_POLLS = 60;
+  const POLL_MS = 8000;
+  let polls = 0;
+  let timer = null;
+  let pollGoogle = googleRun;
+  let pollOpenai = openaiRun;
+
+  function syncDoneArmsFromDom() {
+    const el = document.getElementById("ab-results");
+    if (!el) return;
+    for (const arm of el.querySelectorAll(".ab-arm[data-arm-done='1']")) {
+      const code = arm.querySelector("code");
+      const id = code ? code.textContent.trim() : "";
+      if (id === googleRun) pollGoogle = "";
+      if (id === openaiRun) pollOpenai = "";
+    }
+  }
+  syncDoneArmsFromDom();
+  if (!pollGoogle && !pollOpenai) return;
+
+  function stopPolling() {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+      timer = null;
+    }
+    params.delete("poll");
+    const qs = params.toString();
+    const next = qs ? "?" + qs : window.location.pathname;
+    window.history.replaceState(null, "", next);
+  }
+
+  async function tick() {
+    polls += 1;
+    if (polls > MAX_POLLS) {
+      stopPolling();
+      return;
+    }
+    const q = new URLSearchParams();
+    if (pollGoogle) q.set("google_run", pollGoogle);
+    if (pollOpenai) q.set("openai_run", pollOpenai);
+    if (!pollGoogle && !pollOpenai) {
+      stopPolling();
+      return;
+    }
+    try {
+      const res = await fetch("/inspector/hero-ab/poll?" + q.toString(), {
+        headers: { "Accept": "text/html" },
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        stopPolling();
+        return;
+      }
+      const html = await res.text();
+      const el = document.getElementById("ab-results");
+      if (el) el.innerHTML = html;
+      if (el) {
+        syncDoneArmsFromDom();
+      }
+      const done = el && el.querySelector("[data-poll-done='1']");
+      if (done || (!pollGoogle && !pollOpenai)) {
+        stopPolling();
+        return;
+      }
+      timer = window.setTimeout(tick, POLL_MS);
+    } catch (_) {
+      if (polls <= MAX_POLLS) {
+        timer = window.setTimeout(tick, POLL_MS + 2000);
+      }
+    }
+  }
+  timer = window.setTimeout(tick, 3000);
+})();
+</script>
+{% endif %}
+{% endblock %}

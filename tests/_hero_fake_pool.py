@@ -41,17 +41,21 @@ class HeroFakeConnection:
             if run_id is None:
                 return None
             return _Row({"agent_run_id": run_id})
-        if "FROM agent_runs WHERE id = $1" in q and "finished_at" not in q:
-            run_id = args[0]
-            row = self.store.agent_runs.get(run_id)
-            if row is None:
-                return None
-            return _Row({"status": row["status"]})
         if "FROM agent_runs WHERE id = $1" in q:
             run_id = args[0]
             row = self.store.agent_runs.get(run_id)
             if row is None:
                 return None
+            if "metadata" in q:
+                return _Row(
+                    {
+                        "status": row["status"],
+                        "finished_at": row.get("finished_at"),
+                        "metadata": row.get("metadata", {}),
+                    }
+                )
+            if "finished_at" not in q:
+                return _Row({"status": row["status"]})
             return _Row({"status": row["status"], "finished_at": row.get("finished_at")})
         if "INSERT INTO agent_runs" in q and "RETURNING id" in q:
             run_id = uuid.uuid4()
@@ -87,6 +91,7 @@ class HeroFakeConnection:
                 _Row(
                     {
                         "r2_url": r.get("r2_url"),
+                        "r2_key": r.get("r2_key"),
                         "status": r.get("status"),
                         "metadata": r.get("metadata", {}),
                     }
@@ -141,6 +146,7 @@ def seed_uploaded_hero_assets(
                 "id": uuid.uuid4(),
                 "agent_run_id": run_id,
                 "status": "uploaded",
+                "r2_key": f"hero-candidates/{run_id}/{i}.png",
                 "r2_url": f"https://r2.example/hero-candidates/{run_id}/{i}.png",
                 "metadata": {
                     "variant_index": i,

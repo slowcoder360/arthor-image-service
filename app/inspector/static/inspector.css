@@ -235,3 +235,80 @@ button:hover {
 code {
   font-size: 0.9em;
 }
+
+.json-editor {
+  width: 100%;
+  min-height: 420px;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #0a0a0a;
+  color: var(--fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.ab-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 960px) {
+  .ab-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ab-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 720px) {
+  .ab-compare {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ab-arm h3 {
+  margin-top: 0;
+}
+
+.ab-triad {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ab-triad figure {
+  margin: 0;
+}
+
+.ab-triad figcaption {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.hero-thumb {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.badge.ok {
+  background: #143d24;
+  color: #8fd4a8;
+}
+
+.badge.fail {
+  background: #3d1414;
+  color: var(--err);
+}

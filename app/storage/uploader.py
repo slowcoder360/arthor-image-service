@@ -52,6 +52,33 @@ class AssetObjectMetadata:
 class HasR2UrlParts(Protocol):
     r2_endpoint_url: str | None
     r2_bucket: str | None
+    r2_public_url: str | None
+
+
+def public_url_for(settings: HasR2UrlParts, r2_key: str) -> str:
+    """Browser-loadable URL for an object key.
+
+    Prefer ``R2_PUBLIC_URL`` (``pub-*.r2.dev`` or custom domain) when set.
+    The S3 API endpoint is not usable in ``<img src>`` tags.
+    """
+    public_base = getattr(settings, "r2_public_url", None)
+    if public_base:
+        return f"{public_base.rstrip('/')}/{r2_key.lstrip('/')}"
+    base = settings.r2_endpoint_url or ""
+    bucket = settings.r2_bucket or ""
+    return f"{base}/{bucket}/{r2_key}"
+
+
+def browser_url_for(
+    settings: HasR2UrlParts,
+    *,
+    r2_key: str | None,
+    stored_url: str | None = None,
+) -> str:
+    """Resolve a stored ``r2_url`` for browser display (fixes legacy S3 API URLs)."""
+    if r2_key:
+        return public_url_for(settings, r2_key)
+    return stored_url or ""
 
 
 async def upload_asset(
@@ -93,10 +120,3 @@ async def upload_asset_at_key(
         Metadata=object_metadata.as_metadata_dict(),
     )
     return r2_key
-
-
-def public_url_for(settings: HasR2UrlParts, r2_key: str) -> str:
-    """Compose a v1 public URL (public-bucket assumption)."""
-    base = settings.r2_endpoint_url or ""
-    bucket = settings.r2_bucket or ""
-    return f"{base}/{bucket}/{r2_key}"

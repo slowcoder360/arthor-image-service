@@ -14,8 +14,8 @@ from app.providers.protocol import ProviderResult
 
 logger = logging.getLogger(__name__)
 
-# Default model pinned at build time; README documents bumps.
-DEFAULT_MODEL_VERSION = "gpt-image-1"
+# Default model pinned at build time; override via OPENAI_IMAGE_MODEL env.
+DEFAULT_MODEL_VERSION = "gpt-image-2"
 
 
 class ProviderError(Exception):
@@ -40,6 +40,20 @@ class OpenAICostTable:
             (1536, 1024): 6,
             (1536, 1536): 8,
             (1920, 1080): 8,
+        },
+        "gpt-image-1.5": {
+            (1024, 1024): 4,
+            (1024, 1536): 5,
+            (1536, 1024): 5,
+            (1536, 1536): 8,
+            (1920, 1080): 8,
+        },
+        "gpt-image-2": {
+            (1024, 1024): 5,
+            (1024, 1536): 6,
+            (1536, 1024): 6,
+            (1536, 1536): 10,
+            (1920, 1080): 10,
         },
     }
 
@@ -91,9 +105,16 @@ class OpenAIImageProvider:
     supports_pack_consistent = False
     supports_reference_image = True
 
-    def __init__(self, client: openai.AsyncOpenAI, model_version: str | None = None) -> None:
+    def __init__(
+        self,
+        client: openai.AsyncOpenAI,
+        model_version: str | None = None,
+        *,
+        quality: str = "medium",
+    ) -> None:
         self._client = client
         self.model_version = model_version if model_version is not None else DEFAULT_MODEL_VERSION
+        self._quality = quality
 
     async def generate_single(
         self,
@@ -130,11 +151,14 @@ class OpenAIImageProvider:
                 if len(reference_images) > 1:
                     trimmed["reference_warning"] = "multiple_reference_images_using_first_only"
             else:
-                resp = await self._client.images.generate(
-                    model=self.model_version,
-                    prompt=prompt,
-                    size=f"{w}x{h}",
-                )
+                gen_kwargs: dict[str, Any] = {
+                    "model": self.model_version,
+                    "prompt": prompt,
+                    "size": f"{w}x{h}",
+                }
+                if self._quality:
+                    gen_kwargs["quality"] = self._quality
+                resp = await self._client.images.generate(**gen_kwargs)
                 trimmed = _response_trim(resp, dimensions)
 
             latency_ms = _latency_ms_since(t0)
