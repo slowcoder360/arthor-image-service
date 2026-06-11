@@ -19,8 +19,8 @@ SceneArchetypeId = Literal[
 
 AuthenticityMode = Literal["stylized", "space_anchored", "likeness_anchored"]
 
-STRATEGY_VERSION = "1.0"
-SCENE_CATALOG_VERSION = "1.0"
+STRATEGY_VERSION = "1.1"
+SCENE_CATALOG_VERSION = "1.1"
 
 _FAMILY_ICP_KEYS: tuple[str, ...] = (
     "famil",
@@ -109,11 +109,39 @@ SCENE_CATALOG: dict[SceneArchetypeId, SceneArchetype] = {
 }
 
 INDUSTRY_BACKDROP_MODIFIERS: dict[str, str] = {
-    "dental": "warm family-friendly dental office ambiance — no operatory, no dental chair in frame",
+    # DR 20: clinic interior/exterior, warm light, clean-not-scary; no instrument close-ups.
+    "dental": (
+        "bright modern dental clinic — reception, consult nook, or hallway with subtle practice cues "
+        "(clean whites, soft blues, kid-friendly details); soft window light; clearly a dental office"
+    ),
     "legal": "measured professional law office warmth — human consultation, not empty conference room",
     "home_services": "well-maintained home interior — comfort and protection, not equipment hero",
-    "healthcare": "welcoming healthcare office — human-centered, not treatment-room equipment",
+    "healthcare": (
+        "welcoming medical clinic interior — clean, calm, human-centered; not treatment-room equipment hero"
+    ),
     "general_services": "credible local professional service setting with natural light",
+}
+
+INDUSTRY_ENVIRONMENT_ANCHORS: dict[str, str] = {
+    "dental": (
+        "Environment anchors: recognizable dental practice (reception desk, clinic corridor, or consult area "
+        "in background); neutral dental décor; shallow depth of field ok; no operatory, dental chair, "
+        "or instruments as focal point"
+    ),
+    "healthcare": (
+        "Environment anchors: recognizable clinic or medical office background; clean and reassuring; "
+        "no procedure room or clinical hardware as hero"
+    ),
+}
+
+INDUSTRY_SUBJECT_GUIDANCE: dict[str, str] = {
+    "dental": (
+        "People are the hero subject; dental clinic environment visible behind them — "
+        "never a residential home, living room, or kitchen"
+    ),
+    "healthcare": (
+        "People are the hero subject; healthcare clinic environment visible — not a residential interior"
+    ),
 }
 
 
@@ -163,6 +191,17 @@ def industry_backdrop_modifier(industry_label: str) -> str:
     return INDUSTRY_BACKDROP_MODIFIERS.get(
         industry_label,
         INDUSTRY_BACKDROP_MODIFIERS["general_services"],
+    )
+
+
+def industry_environment_anchors(industry_label: str) -> str | None:
+    return INDUSTRY_ENVIRONMENT_ANCHORS.get(industry_label)
+
+
+def hero_subject_guidance(industry_label: str) -> str:
+    return INDUSTRY_SUBJECT_GUIDANCE.get(
+        industry_label,
+        "Show human outcome and connection — never business equipment or empty rooms as hero.",
     )
 
 

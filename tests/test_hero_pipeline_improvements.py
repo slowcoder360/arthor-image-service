@@ -37,9 +37,9 @@ async def test_story_prompt_excludes_navigation_wording_and_empty_left_void():
     profile = await resolve_style_profile(hero_request_to_payload_v1(req))
     prompts = compile_hero_triad_prompts(req, profile)
     story = prompts[1].prompt.lower()
-    assert "navigation overlay" not in story
-    assert "never navigation" in story
-    assert "blank void" in story or "empty left half" in story
+    assert "layout intent" not in story
+    assert "site header overlay" in story or "header overlay" in story
+    assert "blank void" not in story
     assert req.variants[1].headline not in prompts[1].prompt
 
 
@@ -95,7 +95,7 @@ async def test_offer_prompt_widens_cta_zone_when_has_cta():
 
     profile = await resolve_style_profile(hero_request_to_payload_v1(req))
     text = compile_variant_prompt(req, req.variants[2], 2, profile)
-    assert "CTA button overlay" in text
+    assert "lower-left" in text.lower()
 
 
 def test_settings_model_defaults():

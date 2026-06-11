@@ -1,8 +1,8 @@
-{% if desktop_run and desktop_prompts and desktop_prompts[0].compiler_version and desktop_prompts[0].compiler_version != '3.0' %}
-<p class="banner error">This desktop run used compiler v{{ desktop_prompts[0].compiler_version }} (pre–v3 strategy). Launch a fresh run — server must be restarted after deploy.</p>
+{% if desktop_run and desktop_prompts and desktop_prompts[0].compiler_version and desktop_prompts[0].compiler_version != '3.2' %}
+<p class="banner error">This desktop run used compiler v{{ desktop_prompts[0].compiler_version }} (pre–OpenAI serializer). Launch a fresh run — server must be restarted after deploy.</p>
 {% endif %}
-{% if mobile_run and mobile_prompts and mobile_prompts[0].compiler_version and mobile_prompts[0].compiler_version != '3.0' %}
-<p class="banner error">This mobile run used compiler v{{ mobile_prompts[0].compiler_version }} (pre–v3 strategy). Launch a fresh run — server must be restarted after deploy.</p>
+{% if mobile_run and mobile_prompts and mobile_prompts[0].compiler_version and mobile_prompts[0].compiler_version != '3.2' %}
+<p class="banner error">This mobile run used compiler v{{ mobile_prompts[0].compiler_version }} (pre–OpenAI serializer). Launch a fresh run — server must be restarted after deploy.</p>
 {% endif %}
 {% if not desktop_run and not mobile_run %}
 <p class="muted">Launch a run to compare desktop vs mobile headers here.</p>

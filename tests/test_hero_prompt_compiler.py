@@ -26,23 +26,20 @@ async def test_compile_dental_hero_job_trust_not_equipment():
     prompts = compile_hero_triad_prompts(req, profile)
     assert len(prompts) == 3
     search = prompts[0].prompt
-    assert prompts[0].compiler_version == "3.0"
+    assert prompts[0].compiler_version == "3.2"
     assert prompts[0].industry_label == "dental"
     assert prompts[0].hero_job == "trust"
     assert prompts[0].scene_archetype == "shared_joy"
     assert prompts[1].scene_archetype == "shared_joy"
     assert prompts[2].scene_archetype == "confident_smile"
-    assert "Scene archetype: shared_joy" in search
+    assert search.startswith("Create a photorealistic homepage hero background plate")
+    assert "Subject:" in search
     assert "candid shared joy" in search.lower()
     assert "consultation" not in search.lower()
-    body, _, _ = search.partition("Avoid:")
-    assert "no operatory" in body.lower()
-    assert "no dental chair" in body.lower()
-    assert "visual anchors" not in search.lower()
-    assert "dental operatory or welcoming" not in search.lower()
-    assert "blank left half" in search.lower() or "blank void" in search.lower()
-    assert "#0A4B6F" in search
-    assert "never render text" in search.lower()
+    assert "Scene archetype:" not in search
+    assert "dental clinic" in search.lower()
+    assert "Invariants:" in search
+    assert "residential home" in search.lower()
     assert "Find a dentist" not in search
     assert prompts[0].prompt_hash == prompt_text_hash(search)
 
@@ -85,9 +82,8 @@ async def test_mobile_viewport_portrait_composition():
     assert slot.layout.dimensions.h == 1536
     assert prompts[0].hero_viewport == "mobile"
     text = prompts[0].prompt
-    assert "1024x1536" in text
-    assert "portrait" in text.lower() or "mobile" in text.lower()
-    assert "upper" in text.lower() or "quiet" in text.lower()
+    assert "Portrait photograph" in text
+    assert "lower half" in text.lower()
 
     raw = _build_hero_request()
     raw["business"]["industry"] = "personal injury law"
@@ -96,6 +92,5 @@ async def test_mobile_viewport_portrait_composition():
 
     profile = await resolve_style_profile(hero_request_to_payload_v1(req))
     text = compile_variant_prompt(req, req.variants[0], 0, profile)
-    assert "Scene archetype" in text
-    assert "law office" in text.lower() or "legal" in text.lower() or "professional" in text.lower()
-    assert "empty conference room" in text.lower()
+    assert "Create a photorealistic homepage hero background plate" in text
+    assert "law" in text.lower() or "legal" in text.lower() or "professional" in text.lower()

@@ -92,7 +92,7 @@ INDUSTRY_CONTEXTS: tuple[IndustryContext, ...] = (
     IndustryContext(
         match_keys=("dental", "dentist", "orthodont"),
         label="dental",
-        backdrop="warm private consultation room — no operatory, no dental chair in frame",
+        backdrop="bright modern dental clinic — reception or consult area; no operatory or chair in frame",
         trust="dentist and patient in calm face-to-face consultation; conversation and trust, equipment absent or fully out of frame",
         outcome="confident natural smile, parent and child at ease after visit, genuine relief — never posed with dental chair",
         experience="relaxed patient in welcoming setting, soft natural light — human warmth, not clinical equipment",
@@ -104,6 +104,9 @@ INDUSTRY_CONTEXTS: tuple[IndustryContext, ...] = (
             "x-ray machine or clinical hardware hero",
             "reception desk as main subject",
             "generic spa/wellness lobby",
+            "residential home interior",
+            "living room or kitchen backdrop",
+            "domestic furniture masquerading as clinic",
         ),
     ),
     IndustryContext(
