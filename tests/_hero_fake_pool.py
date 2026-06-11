@@ -41,6 +41,26 @@ class HeroFakeConnection:
             if run_id is None:
                 return None
             return _Row({"agent_run_id": run_id})
+        if "FROM image_request_payloads" in q and "agent_run_id = $1" in q:
+            run_id = args[0]
+            for row in self.store.payloads:
+                if row.get("agent_run_id") == run_id:
+                    return _Row({"payload": row.get("payload", {})})
+            return None
+        if "FROM external_media_assets" in q and "WHERE id = $1" in q:
+            asset_id = args[0]
+            for asset in self.store.assets:
+                if asset["id"] == asset_id:
+                    return _Row(
+                        {
+                            "id": asset["id"],
+                            "status": asset.get("status"),
+                            "agent_run_id": asset.get("agent_run_id"),
+                            "site_id": asset.get("site_id"),
+                            "metadata": asset.get("metadata", {}),
+                        }
+                    )
+            return None
         if "FROM agent_runs WHERE id = $1" in q:
             run_id = args[0]
             row = self.store.agent_runs.get(run_id)
@@ -68,6 +88,20 @@ class HeroFakeConnection:
                 "finished_at": None,
             }
             return _Row({"id": run_id})
+        if "INSERT INTO external_media_assets" in q and "RETURNING id" in q:
+            asset_id = uuid.uuid4()
+            meta = json.loads(args[4]) if isinstance(args[4], str) else args[4]
+            self.store.assets.append(
+                {
+                    "id": asset_id,
+                    "agent_run_id": args[0],
+                    "site_id": args[1],
+                    "status": "pending",
+                    "metadata": meta,
+                    "created_ord": len(self.store.assets),
+                }
+            )
+            return _Row({"id": asset_id})
         if "INSERT INTO image_request_payloads" in q and "RETURNING id" in q:
             payload_id = uuid.uuid4()
             self.store.payloads.append(
@@ -79,6 +113,29 @@ class HeroFakeConnection:
             )
             self.store.idempotency[str(args[4])] = args[0]
             return _Row({"id": payload_id})
+        if "INSERT INTO tool_calls" in q and "RETURNING id" in q:
+            tc_id = len(self.store.tool_calls) + 1
+            self.store.tool_calls.append(
+                {
+                    "id": tc_id,
+                    "run_id": args[0],
+                    "cost_cents": args[6],
+                }
+            )
+            return _Row({"id": tc_id})
+        if "UPDATE agent_runs" in q and "RETURNING cost_cents" in q:
+            run_id = args[0]
+            row = self.store.agent_runs.get(run_id)
+            if row is not None:
+                total = sum(
+                    tc.get("cost_cents", 0)
+                    for tc in self.store.tool_calls
+                    if tc.get("run_id") == run_id
+                )
+                row["cost_cents"] = total
+                row["finished_at"] = row.get("finished_at") or "now"
+                return _Row({"cost_cents": total})
+            return _Row({"cost_cents": 0})
         return None
 
     async def fetch(self, query: str, *args: Any) -> list[_Row]:
@@ -100,29 +157,62 @@ class HeroFakeConnection:
             ]
         return []
 
-    async def execute(self, query: str, *args: Any) -> None:
+    async def execute(self, query: str, *args: Any) -> str:
         q = " ".join(query.split())
         if q.startswith("UPDATE agent_runs"):
             run_id = args[0]
             row = self.store.agent_runs.get(run_id)
             if row is None:
-                return
-            if "finished_at = now()" in q:
+                return "UPDATE 0"
+            if "finished_at = now()" in q or "finished_at = COALESCE" in q:
                 row["finished_at"] = "now"
             if "SET status = $2" in q:
                 row["status"] = args[1]
             if "metadata = COALESCE" in q and len(args) >= 3:
                 patch = json.loads(args[2]) if isinstance(args[2], str) else args[2]
                 row["metadata"] = {**row.get("metadata", {}), **patch}
-        elif "UPDATE external_media_assets" in q:
+            return "UPDATE 1"
+        if "UPDATE external_media_assets" in q:
             asset_id = args[0]
             for asset in self.store.assets:
-                if asset["id"] == asset_id:
+                if asset["id"] != asset_id:
+                    continue
+                if "status = 'superseded'" in q:
+                    asset["status"] = "superseded"
+                    replaced_by = str(args[1])
+                    asset["metadata"] = {
+                        **asset.get("metadata", {}),
+                        "replaced_by": replaced_by,
+                    }
+                    return "UPDATE 1"
+                if "status = 'generated'" in q:
+                    asset["status"] = "generated"
+                    asset["width"] = args[1]
+                    asset["height"] = args[2]
+                    if len(args) >= 6 and "metadata ||" in q:
+                        patch = json.loads(args[5]) if isinstance(args[5], str) else args[5]
+                        asset["metadata"] = {**asset.get("metadata", {}), **patch}
+                    return "UPDATE 1"
+                if "status = 'uploaded'" in q:
+                    asset["status"] = "uploaded"
+                    asset["r2_key"] = args[1]
+                    asset["r2_url"] = args[2]
+                    return "UPDATE 1"
+                if "status = 'failed'" in q:
+                    asset["status"] = "failed"
+                    if len(args) >= 2:
+                        patch = json.loads(args[1]) if isinstance(args[1], str) else args[1]
+                        asset["metadata"] = {**asset.get("metadata", {}), **patch}
+                    return "UPDATE 1"
+                if "metadata = COALESCE" in q or "metadata = metadata ||" in q:
                     patch = json.loads(args[1]) if isinstance(args[1], str) else args[1]
                     asset["metadata"] = {**asset.get("metadata", {}), **patch}
-                    break
-        elif q.startswith("DELETE FROM agent_runs"):
+                    return "UPDATE 1"
+            return "UPDATE 0"
+        if q.startswith("DELETE FROM agent_runs"):
             self.store.agent_runs.pop(args[0], None)
+            return "DELETE 1"
+        return "UPDATE 0"
 
 
 class HeroFakePool:

@@ -1,4 +1,4 @@
-"""Hero-candidates A/B lab helpers (inspector GUI)."""
+"""Hero viewport lab helpers (inspector GUI) — OpenAI desktop vs mobile headers."""
 
 from __future__ import annotations
 
@@ -11,13 +11,26 @@ import asyncpg
 from pydantic import ValidationError
 
 from app.payload.hero_models import HeroCandidatesRequest
+from app.style.hero_viewports import VIEWPORT_SPECS, HeroViewport
 
-PROVIDERS = (
-    ("google_nano_banana", "Google (gemini)"),
-    ("openai_image", "OpenAI"),
+VIEWPORTS: tuple[tuple[HeroViewport, str], ...] = (
+    ("desktop", "Desktop header"),
+    ("mobile", "Mobile header"),
 )
 
+HERO_PROVIDER = "openai_image"
+
 _TERMINAL_POLL_STATUSES = frozenset({"complete", "partial", "failed"})
+
+
+def openai_model_label(settings: Any) -> str:
+    model = getattr(settings, "openai_image_model", "gpt-image-2")
+    return f"OpenAI ({model})"
+
+
+def viewport_arm_title(viewport: HeroViewport, settings: Any) -> str:
+    spec = VIEWPORT_SPECS[viewport]
+    return f"{spec.label} — {openai_model_label(settings)}"
 
 
 def poll_status_terminal(status: str | None) -> bool:
@@ -26,35 +39,33 @@ def poll_status_terminal(status: str | None) -> bool:
 
 def ab_session_needs_polling(
     *,
-    google_run: str | None,
-    openai_run: str | None,
-    google_status: str | None,
-    openai_status: str | None,
+    desktop_run: str | None,
+    mobile_run: str | None,
+    desktop_status: str | None,
+    mobile_status: str | None,
 ) -> bool:
-    """True while any launched arm is still in-flight (client poll should continue)."""
-    if google_run and not poll_status_terminal(google_status):
+    if desktop_run and not poll_status_terminal(desktop_status):
         return True
-    if openai_run and not poll_status_terminal(openai_status):
+    if mobile_run and not poll_status_terminal(mobile_status):
         return True
     return False
 
 
 def polling_status_note(
     *,
-    google_run: str | None,
-    openai_run: str | None,
-    google_status: str | None,
-    openai_status: str | None,
+    desktop_run: str | None,
+    mobile_run: str | None,
+    desktop_status: str | None,
+    mobile_status: str | None,
 ) -> str:
-    """Human-readable hint for which arms are still being refreshed."""
     waiting: list[str] = []
-    if google_run and not poll_status_terminal(google_status):
-        waiting.append("Google")
-    if openai_run and not poll_status_terminal(openai_status):
-        waiting.append("OpenAI")
+    if desktop_run and not poll_status_terminal(desktop_status):
+        waiting.append("Desktop")
+    if mobile_run and not poll_status_terminal(mobile_status):
+        waiting.append("Mobile")
     if not waiting:
         return ""
-    return f"Refreshing {', '.join(waiting)} — local DB status only (no provider API calls)."
+    return f"Refreshing {', '.join(waiting)} — local DB status only (not provider API calls)."
 
 
 _STALE_RUN_SECONDS = 300
@@ -94,7 +105,6 @@ async def reconcile_stale_hero_run(pool: Any, run_id: uuid.UUID) -> bool:
             """,
             run_id,
         )
-    # Orphan: worker gone but run still "running" (common after uvicorn restart).
     if int(pending or 0) == 0 and age >= 120:
         pass
     elif age < _STALE_RUN_SECONDS:
@@ -115,6 +125,7 @@ def default_hero_payload() -> dict[str, Any]:
     return {
         "site_id": site_id,
         "idempotency_key": f"hero-ab:{site_id}:sample",
+        "hero_viewport": "desktop",
         "business": {
             "site_name": "Acme Dental",
             "industry": "dental",
@@ -192,12 +203,13 @@ def default_hero_payload() -> dict[str, Any]:
     }
 
 
-def payload_for_provider(base: dict[str, Any], provider: str) -> dict[str, Any]:
+def payload_for_viewport(base: dict[str, Any], viewport: HeroViewport) -> dict[str, Any]:
     out = deepcopy(base)
     site_id = str(out.get("site_id") or uuid.uuid4())
     out["site_id"] = site_id
-    out["default_provider_hint"] = provider
-    out["idempotency_key"] = f"hero-ab:{provider}:{uuid.uuid4()}"
+    out["hero_viewport"] = viewport
+    out["default_provider_hint"] = HERO_PROVIDER
+    out["idempotency_key"] = f"hero-ab:{viewport}:{uuid.uuid4()}"
     return out
 
 
@@ -279,17 +291,35 @@ async def fetch_run_provider_prompts(pool: Any, run_id: uuid.UUID) -> list[dict[
     return [p for p in raw if isinstance(p, dict)]
 
 
-async def run_provider_label(pool: Any, run_id: uuid.UUID) -> str:
+async def run_label(pool: Any, run_id: uuid.UUID) -> str:
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT provider FROM external_media_assets
-            WHERE agent_run_id = $1
-            ORDER BY created_at ASC
-            LIMIT 1
+            SELECT ar.metadata,
+                   (
+                       SELECT provider FROM external_media_assets
+                       WHERE agent_run_id = ar.id
+                       ORDER BY created_at ASC LIMIT 1
+                   ) AS provider,
+                   (
+                       SELECT model_version FROM external_media_assets
+                       WHERE agent_run_id = ar.id
+                       ORDER BY created_at ASC LIMIT 1
+                   ) AS model_version
+            FROM agent_runs ar
+            WHERE ar.id = $1
             """,
             run_id,
         )
     if row is None:
         return "—"
-    return str(row["provider"] or "—")
+    md = row["metadata"]
+    if isinstance(md, str):
+        md = json.loads(md)
+    vp = md.get("hero_viewport") if isinstance(md, dict) else None
+    spec = VIEWPORT_SPECS.get(vp) if vp in VIEWPORT_SPECS else None
+    vp_label = spec.label if spec else (vp or "hero")
+    model = row["model_version"]
+    if model:
+        return f"{vp_label} · {row['provider']} ({model})"
+    return vp_label

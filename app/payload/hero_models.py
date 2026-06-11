@@ -11,6 +11,7 @@ from app.payload.models import (
     BrandVisual,
     BrandVoice,
     Business,
+    CustomerReferenceAsset,
     Location,
     Pack,
     PackProviderHint,
@@ -35,6 +36,7 @@ from app.style.hero_archetypes import (
     variant_setting,
     variant_subject_primary,
 )
+from app.style.hero_viewports import resolve_viewport, viewport_spec
 
 _TONE_ANGLE_INTENTS: dict[str, str] = {
     "search": "homepage hero emphasizing search intent and local discoverability",
@@ -45,6 +47,27 @@ _TONE_ANGLE_INTENTS: dict[str, str] = {
 _HERO_CALLBACK_URL = "https://arthor-ai.invalid/hero-candidates-no-callback"
 
 HeroPayloadVersion = Literal["hero_candidates.1", "hero_candidates.2"]
+HeroViewport = Literal["desktop", "mobile"]
+HeroEditKind = Literal["retry", "tweak", "reference", "rescene"]
+
+
+class HeroRegenerateVariantBody(BaseModel):
+    """Typed hero variant edit — builder sends edit_kind, not raw provider prompts.
+
+    Consumer doc (H6): POST /images/hero-candidates/regenerate-variant
+      { asset_id, edit_kind, new_seed?, prompt_modifier?, scene_archetype?,
+        customer_reference_assets? }
+    → 202 { agent_run_id, new_asset_id, status: accepted }
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    asset_id: UUID4
+    edit_kind: HeroEditKind
+    new_seed: int | None = None
+    prompt_modifier: str | None = None
+    scene_archetype: str | None = None
+    customer_reference_assets: list[CustomerReferenceAsset] | None = None
 
 
 class HeroCopyMetrics(BaseModel):
@@ -120,6 +143,7 @@ class HeroCandidatesRequest(BaseModel):
     base_seed: int = 42
     default_provider_hint: PackProviderHint | None = None
     payload_version: HeroPayloadVersion = "hero_candidates.1"
+    hero_viewport: HeroViewport = "desktop"
 
 
 def _variant_intent(variant: HeroVariantSlot) -> str:
@@ -130,7 +154,11 @@ def _variant_intent(variant: HeroVariantSlot) -> str:
 
 
 def variant_to_slot(request: HeroCandidatesRequest, variant: HeroVariantSlot, index: int) -> Slot:
-    """Map one triad variant to a homepage hero slot (16:9 @ 1536×1024, provider-supported)."""
+    """Map one triad variant to a homepage hero slot for the request viewport."""
+    vp = viewport_spec(resolve_viewport(request.hero_viewport))
+    inset = safe_area_inset_pct(variant.tone_angle)
+    if vp.viewport == "mobile" and variant.tone_angle == "offer":
+        inset = 45
     return Slot(
         slot_id=f"hero_candidate_{index}",
         ordinal=index,
@@ -163,9 +191,9 @@ def variant_to_slot(request: HeroCandidatesRequest, variant: HeroVariantSlot, in
         camera=SlotCamera(framing="wide", angle="eye-level", lens_feel="35mm"),
         lighting_mood=SlotLightingMood(mood_tokens=[], contrast="medium"),
         layout=SlotLayout(
-            aspect_ratio="16:9",
-            dimensions=SlotDimensions(w=1536, h=1024),
-            safe_area=SlotSafeArea(mode="start", inset_pct=safe_area_inset_pct(variant.tone_angle)),
+            aspect_ratio=vp.aspect_ratio,
+            dimensions=SlotDimensions(w=vp.width, h=vp.height),
+            safe_area=SlotSafeArea(mode=vp.safe_area_mode, inset_pct=inset),
             overlay_text_risk=True,
         ),
         count=1,

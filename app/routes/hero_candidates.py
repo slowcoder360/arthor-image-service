@@ -12,18 +12,29 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from app.auth.hmac import require_hmac, require_hmac_get
-from app.orchestration.hero_worker import run_hero_candidates_in_background
+from app.orchestration.hero_worker import (
+    plan_hero_variant_regenerate,
+    run_hero_candidates_in_background,
+    run_hero_variant_regenerate_in_background,
+)
 from app.payload.hero_models import (
     HeroCandidatesRequest,
+    HeroRegenerateVariantBody,
     build_hero_copy_overlay_metadata,
     hero_request_to_payload_v1,
+    variant_to_slot,
 )
+from app.payload.models import PayloadV1
 from app.payload.idempotency import lookup_idempotency_key
 from app.payload.repository import IdempotencyConflict, insert_raw_payload_record
 from app.runs.agent_runs import insert_pending_run, update_run_status
 from app.storage.uploader import browser_url_for
+from app.storage.asset_writer import insert_pending_asset
 from app.style.prompt_improver import finalize_hero_triad_prompts
 from app.style.resolver import resolve_style_profile, style_profile_to_metadata
+from app.style.hero_visual_strategy import resolve_hero_visual_strategy
+from app.style.hero_reference_plan import build_hero_reference_plan
+from app.style.profile import StyleProfile
 
 router = APIRouter()
 
@@ -117,15 +128,21 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
         raise
 
     style_profile = await resolve_style_profile(payload)
+    visual_strategy = resolve_hero_visual_strategy(hero_req)
+    reference_plan = build_hero_reference_plan(hero_req)
     compiled_prompts = await finalize_hero_triad_prompts(services, hero_req, style_profile)
     improver_stats = getattr(services, "_last_hero_improver_stats", None)
     metadata_patch: dict[str, Any] = {
         "style_profile": style_profile_to_metadata(style_profile),
+        "hero_visual_strategy": visual_strategy.to_dict(),
         "hero_provider_prompts": [p.to_dict() for p in compiled_prompts],
         "hero_prompt_compiler_version": compiled_prompts[0].compiler_version if compiled_prompts else None,
+        "hero_viewport": hero_req.hero_viewport,
         "hero_copy_overlay": build_hero_copy_overlay_metadata(hero_req),
         "payload_version": hero_req.payload_version,
     }
+    if reference_plan is not None:
+        metadata_patch["reference_plan"] = reference_plan
     if improver_stats:
         metadata_patch["hero_prompt_improver_stats"] = improver_stats
     await update_run_status(
@@ -198,6 +215,8 @@ async def _build_poll_response(pool: Any, run_id: uuid.UUID, settings: Any) -> d
             entry["headline"] = md["headline"]
         if md.get("subhead") is not None:
             entry["subhead"] = md["subhead"]
+        if md.get("failure_mode") is not None:
+            entry["failure_mode"] = md["failure_mode"]
         urls.append(entry)
 
     urls.sort(key=lambda u: (u.get("variant_index") is None, u.get("variant_index", 0)))
@@ -217,6 +236,190 @@ async def _build_poll_response(pool: Any, run_id: uuid.UUID, settings: Any) -> d
     if error:
         out["error"] = error
     return out
+
+
+def _metadata_as_dict(meta: Any) -> dict[str, Any]:
+    if meta is None:
+        return {}
+    if isinstance(meta, dict):
+        return meta
+    if isinstance(meta, str):
+        return json.loads(meta)
+    return dict(meta)
+
+
+async def _style_profile_from_hero_run(
+    pool: Any,
+    *,
+    original_run_id: uuid.UUID,
+    payload: PayloadV1,
+) -> StyleProfile:
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT metadata FROM agent_runs WHERE id = $1",
+            original_run_id,
+        )
+    meta = _metadata_as_dict(row["metadata"]) if row else {}
+    raw_sp = meta.get("style_profile")
+    if isinstance(raw_sp, dict) and raw_sp.get("palette"):
+        try:
+            return StyleProfile.model_validate(raw_sp)
+        except ValidationError:
+            pass
+    return await resolve_style_profile(payload)
+
+
+def _original_hero_asset_seed(asset_meta: dict[str, Any], request: HeroCandidatesRequest, index: int) -> int:
+    raw = asset_meta.get("seed")
+    if raw is not None:
+        return int(raw)
+    return int(request.base_seed + index)
+
+
+@router.post("/images/hero-candidates/regenerate-variant")
+async def regenerate_hero_variant(request: Request) -> JSONResponse:
+    """Regenerate one hero triad variant with a typed edit_kind (mirrors pack regenerate-slot)."""
+    raw = await require_hmac(request)
+    services = request.app.state.services
+    pool = getattr(services, "pool", None)
+    if pool is None:
+        return JSONResponse(status_code=503, content={"detail": "database_unavailable"})
+
+    try:
+        body = HeroRegenerateVariantBody.model_validate(json.loads(raw.decode()))
+    except (json.JSONDecodeError, UnicodeDecodeError, ValidationError) as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    async with pool.acquire() as conn:
+        asset_row = await conn.fetchrow(
+            """
+            SELECT id, status, agent_run_id, site_id, metadata
+            FROM external_media_assets
+            WHERE id = $1
+            """,
+            body.asset_id,
+        )
+        if asset_row is None:
+            return JSONResponse(status_code=404, content={"detail": "unknown_asset_id"})
+
+        if str(asset_row["status"]) != "uploaded":
+            return JSONResponse(status_code=400, content={"detail": "asset_must_be_uploaded"})
+
+        asset_meta = _metadata_as_dict(asset_row["metadata"])
+        if not asset_meta.get("hero_candidate"):
+            return JSONResponse(status_code=400, content={"detail": "asset_not_hero_candidate"})
+        if asset_meta.get("variant_index") is None:
+            return JSONResponse(status_code=400, content={"detail": "asset_missing_variant_index"})
+
+        variant_index = int(asset_meta["variant_index"])
+
+        payload_row = await conn.fetchrow(
+            """
+            SELECT payload
+            FROM image_request_payloads
+            WHERE agent_run_id = $1
+            """,
+            asset_row["agent_run_id"],
+        )
+        if payload_row is None:
+            return JSONResponse(status_code=400, content={"detail": "original_payload_missing"})
+
+    try:
+        hero_req = HeroCandidatesRequest.model_validate(payload_row["payload"])
+    except ValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    payload = hero_request_to_payload_v1(hero_req)
+    style_profile = await _style_profile_from_hero_run(
+        pool,
+        original_run_id=asset_row["agent_run_id"],
+        payload=payload,
+    )
+    original_seed = _original_hero_asset_seed(asset_meta, hero_req, variant_index)
+
+    try:
+        compiled, req_eff, edit_meta = plan_hero_variant_regenerate(
+            hero_req,
+            variant_index=variant_index,
+            edit_kind=body.edit_kind,
+            style_profile=style_profile,
+            original_seed=original_seed,
+            new_seed=body.new_seed,
+            prompt_modifier=body.prompt_modifier,
+            scene_archetype=body.scene_archetype,
+            customer_reference_assets=body.customer_reference_assets,
+        )
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    pname = "openai_image"
+    provider = services.providers.get(pname) if hasattr(services, "providers") else None
+    model_version = getattr(provider, "model_version", "unknown")
+    slot = req_eff.variants[variant_index]
+    slot_obj = variant_to_slot(req_eff, slot, variant_index)
+    pending_meta: dict[str, Any] = {
+        "slot_id": slot_obj.slot_id,
+        "variant_index": variant_index,
+        "slot_intent": slot_obj.intent,
+        "style_profile_id": str(style_profile.id),
+        "prompt_hash": compiled.prompt_hash,
+        "seed": edit_meta["seed"],
+        "determinism_level": "best-effort",
+        "run_id": "",
+        "hero_candidate": True,
+        "edit_kind": body.edit_kind,
+    }
+
+    new_run_id = await insert_pending_run(
+        pool,
+        run_type="hero_variant_regenerate",
+        site_id=hero_req.site_id,
+        parent_run_id=asset_row["agent_run_id"],
+        metadata={
+            "original_asset_id": str(body.asset_id),
+            "edit_kind": body.edit_kind,
+            "variant_index": variant_index,
+            "style_profile": style_profile_to_metadata(style_profile),
+            "hero_provider_prompts": [compiled.to_dict()],
+            "hero_prompt_compiler_version": compiled.compiler_version,
+            **({"reference_plan": edit_meta["reference_plan"]} if edit_meta.get("reference_plan") else {}),
+        },
+    )
+    pending_meta["run_id"] = str(new_run_id)
+
+    new_asset_id = await insert_pending_asset(
+        pool,
+        agent_run_id=new_run_id,
+        site_id=hero_req.site_id,
+        provider=pname,
+        model_version=model_version,
+        metadata=pending_meta,
+    )
+
+    asyncio.create_task(
+        run_hero_variant_regenerate_in_background(
+            services,
+            new_run_id=new_run_id,
+            old_asset_id=body.asset_id,
+            request=req_eff,
+            style_profile=style_profile,
+            variant_index=variant_index,
+            provider_prompt=compiled.prompt,
+            prompt_hash=compiled.prompt_hash,
+            seed=int(edit_meta["seed"]),
+            pending_asset_id=new_asset_id,
+            edit_kind=body.edit_kind,
+        )
+    )
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "agent_run_id": str(new_run_id),
+            "new_asset_id": str(new_asset_id),
+            "status": "accepted",
+        },
+    )
 
 
 @router.get("/images/hero-candidates/{run_id}")

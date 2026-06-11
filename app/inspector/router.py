@@ -569,18 +569,19 @@ _HERO_AB_SCHEMA_HELP = """{
     ... exactly 3 entries ...
   ],
   "base_seed": 77,
-  "default_provider_hint": "google_nano_banana|openai_image"  // overridden per A/B arm
+  "hero_viewport": "desktop|mobile",
+  "default_provider_hint": "openai_image"
 }"""
 
 
 def _hero_ab_results_context(
     *,
-    google_run: uuid.UUID | None,
-    openai_run: uuid.UUID | None,
-    google_body: dict[str, Any] | None,
-    openai_body: dict[str, Any] | None,
-    google_prompts: list[dict[str, Any]] | None = None,
-    openai_prompts: list[dict[str, Any]] | None = None,
+    desktop_run: uuid.UUID | None,
+    mobile_run: uuid.UUID | None,
+    desktop_body: dict[str, Any] | None,
+    mobile_body: dict[str, Any] | None,
+    desktop_prompts: list[dict[str, Any]] | None = None,
+    mobile_prompts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     def _urls(body: dict[str, Any] | None) -> list[dict[str, Any]]:
         if not body:
@@ -589,16 +590,16 @@ def _hero_ab_results_context(
         return [u for u in raw if isinstance(u, dict)]
 
     return {
-        "google_run": str(google_run) if google_run else "",
-        "openai_run": str(openai_run) if openai_run else "",
-        "google_status": (google_body or {}).get("status"),
-        "openai_status": (openai_body or {}).get("status"),
-        "google_error": (google_body or {}).get("error"),
-        "openai_error": (openai_body or {}).get("error"),
-        "google_urls": _urls(google_body),
-        "openai_urls": _urls(openai_body),
-        "google_prompts": google_prompts or [],
-        "openai_prompts": openai_prompts or [],
+        "desktop_run": str(desktop_run) if desktop_run else "",
+        "mobile_run": str(mobile_run) if mobile_run else "",
+        "desktop_status": (desktop_body or {}).get("status"),
+        "mobile_status": (mobile_body or {}).get("status"),
+        "desktop_error": (desktop_body or {}).get("error"),
+        "mobile_error": (mobile_body or {}).get("error"),
+        "desktop_urls": _urls(desktop_body),
+        "mobile_urls": _urls(mobile_body),
+        "desktop_prompts": desktop_prompts or [],
+        "mobile_prompts": mobile_prompts or [],
     }
 
 
@@ -606,8 +607,8 @@ def _hero_ab_results_context(
 async def hero_ab_page(
     request: Request,
     load_latest: bool = False,
-    google_run: uuid.UUID | None = None,
-    openai_run: uuid.UUID | None = None,
+    desktop_run: uuid.UUID | None = None,
+    mobile_run: uuid.UUID | None = None,
     poll: bool = False,
     error: str | None = None,
 ) -> Response:
@@ -625,49 +626,58 @@ async def hero_ab_page(
     recent_rows: list[dict[str, Any]] = []
     if pool is not None:
         for rec in await hero_ab.fetch_recent_hero_runs(pool):
+            md = rec["metadata"]
+            if isinstance(md, str):
+                md = json.loads(md)
+            vp = md.get("hero_viewport", "desktop") if isinstance(md, dict) else "desktop"
+            view_param = "mobile_run" if vp == "mobile" else "desktop_run"
             recent_rows.append(
                 {
                     "id": rec["id"],
                     "status": rec["status"],
                     "started_at": rec["started_at"],
                     "cost_cents": rec["cost_cents"],
-                    "provider_label": await hero_ab.run_provider_label(pool, rec["id"]),
+                    "provider_label": await hero_ab.run_label(pool, rec["id"]),
+                    "view_param": view_param,
                 }
             )
 
-    google_body: dict[str, Any] | None = None
-    openai_body: dict[str, Any] | None = None
-    google_prompts: list[dict[str, Any]] = []
-    openai_prompts: list[dict[str, Any]] = []
-    if pool is not None:
-        settings = services.settings if services else None
-        if google_run is not None and settings is not None:
-            google_body = await hero_ab.poll_hero_run(pool, google_run, settings)
-            google_prompts = await hero_ab.fetch_run_provider_prompts(pool, google_run)
-        if openai_run is not None and settings is not None:
-            openai_body = await hero_ab.poll_hero_run(pool, openai_run, settings)
-            openai_prompts = await hero_ab.fetch_run_provider_prompts(pool, openai_run)
+    desktop_body: dict[str, Any] | None = None
+    mobile_body: dict[str, Any] | None = None
+    desktop_prompts: list[dict[str, Any]] = []
+    mobile_prompts: list[dict[str, Any]] = []
+    settings = services.settings if services else None
+    if pool is not None and settings is not None:
+        if desktop_run is not None:
+            desktop_body = await hero_ab.poll_hero_run(pool, desktop_run, settings)
+            desktop_prompts = await hero_ab.fetch_run_provider_prompts(pool, desktop_run)
+        if mobile_run is not None:
+            mobile_body = await hero_ab.poll_hero_run(pool, mobile_run, settings)
+            mobile_prompts = await hero_ab.fetch_run_provider_prompts(pool, mobile_run)
 
     results_ctx = _hero_ab_results_context(
-        google_run=google_run,
-        openai_run=openai_run,
-        google_body=google_body,
-        openai_body=openai_body,
-        google_prompts=google_prompts,
-        openai_prompts=openai_prompts,
+        desktop_run=desktop_run,
+        mobile_run=mobile_run,
+        desktop_body=desktop_body,
+        mobile_body=mobile_body,
+        desktop_prompts=desktop_prompts,
+        mobile_prompts=mobile_prompts,
     )
     poll_active = poll and hero_ab.ab_session_needs_polling(
-        google_run=results_ctx["google_run"] or None,
-        openai_run=results_ctx["openai_run"] or None,
-        google_status=results_ctx["google_status"],
-        openai_status=results_ctx["openai_status"],
+        desktop_run=results_ctx["desktop_run"] or None,
+        mobile_run=results_ctx["mobile_run"] or None,
+        desktop_status=results_ctx["desktop_status"],
+        mobile_status=results_ctx["mobile_status"],
     )
     polling_note = hero_ab.polling_status_note(
-        google_run=results_ctx["google_run"] or None,
-        openai_run=results_ctx["openai_run"] or None,
-        google_status=results_ctx["google_status"],
-        openai_status=results_ctx["openai_status"],
+        desktop_run=results_ctx["desktop_run"] or None,
+        mobile_run=results_ctx["mobile_run"] or None,
+        desktop_status=results_ctx["desktop_status"],
+        mobile_status=results_ctx["mobile_status"],
     )
+    openai_label = hero_ab.openai_model_label(settings) if settings else "OpenAI"
+    desktop_arm_title = hero_ab.viewport_arm_title("desktop", settings) if settings else "Desktop header"
+    mobile_arm_title = hero_ab.viewport_arm_title("mobile", settings) if settings else "Mobile header"
 
     return _render(
         request,
@@ -680,6 +690,9 @@ async def hero_ab_page(
             "error": error,
             "poll_active": poll_active,
             "polling_note": polling_note,
+            "openai_label": openai_label,
+            "desktop_arm_title": desktop_arm_title,
+            "mobile_arm_title": mobile_arm_title,
             **results_ctx,
         },
     )
@@ -688,8 +701,8 @@ async def hero_ab_page(
 @_protected.get("/hero-ab/poll")
 async def hero_ab_poll(
     request: Request,
-    google_run: uuid.UUID | None = None,
-    openai_run: uuid.UUID | None = None,
+    desktop_run: uuid.UUID | None = None,
+    mobile_run: uuid.UUID | None = None,
 ) -> Response:
     services = getattr(request.app.state, "services", None)
     pool = getattr(services, "pool", None) if services else None
@@ -697,46 +710,48 @@ async def hero_ab_poll(
     if pool is None or settings is None:
         raise HTTPException(status_code=503, detail="database_unavailable")
 
-    google_body = (
-        await hero_ab.poll_hero_run(pool, google_run, settings)
-        if google_run is not None
+    desktop_body = (
+        await hero_ab.poll_hero_run(pool, desktop_run, settings)
+        if desktop_run is not None
         else None
     )
-    openai_body = (
-        await hero_ab.poll_hero_run(pool, openai_run, settings)
-        if openai_run is not None
+    mobile_body = (
+        await hero_ab.poll_hero_run(pool, mobile_run, settings)
+        if mobile_run is not None
         else None
     )
-    google_prompts = (
-        await hero_ab.fetch_run_provider_prompts(pool, google_run)
-        if google_run is not None
+    desktop_prompts = (
+        await hero_ab.fetch_run_provider_prompts(pool, desktop_run)
+        if desktop_run is not None
         else []
     )
-    openai_prompts = (
-        await hero_ab.fetch_run_provider_prompts(pool, openai_run)
-        if openai_run is not None
+    mobile_prompts = (
+        await hero_ab.fetch_run_provider_prompts(pool, mobile_run)
+        if mobile_run is not None
         else []
     )
     ctx = _hero_ab_results_context(
-        google_run=google_run,
-        openai_run=openai_run,
-        google_body=google_body,
-        openai_body=openai_body,
-        google_prompts=google_prompts,
-        openai_prompts=openai_prompts,
+        desktop_run=desktop_run,
+        mobile_run=mobile_run,
+        desktop_body=desktop_body,
+        mobile_body=mobile_body,
+        desktop_prompts=desktop_prompts,
+        mobile_prompts=mobile_prompts,
     )
     ctx["poll_done"] = not hero_ab.ab_session_needs_polling(
-        google_run=ctx["google_run"] or None,
-        openai_run=ctx["openai_run"] or None,
-        google_status=ctx["google_status"],
-        openai_status=ctx["openai_status"],
+        desktop_run=ctx["desktop_run"] or None,
+        mobile_run=ctx["mobile_run"] or None,
+        desktop_status=ctx["desktop_status"],
+        mobile_status=ctx["mobile_status"],
     )
     ctx["polling_note"] = hero_ab.polling_status_note(
-        google_run=ctx["google_run"] or None,
-        openai_run=ctx["openai_run"] or None,
-        google_status=ctx["google_status"],
-        openai_status=ctx["openai_status"],
+        desktop_run=ctx["desktop_run"] or None,
+        mobile_run=ctx["mobile_run"] or None,
+        desktop_status=ctx["desktop_status"],
+        mobile_status=ctx["mobile_status"],
     )
+    ctx["desktop_arm_title"] = hero_ab.viewport_arm_title("desktop", settings)
+    ctx["mobile_arm_title"] = hero_ab.viewport_arm_title("mobile", settings)
     return _render_partial(request, "hero_ab_results.html", ctx)
 
 
@@ -758,11 +773,11 @@ async def hero_ab_launch(
     if base is None:
         return await hero_ab_page(request, error=err or "invalid payload")
 
-    providers: list[str]
+    viewports: list[str]
     if mode == "both":
-        providers = ["google_nano_banana", "openai_image"]
-    elif mode in ("google_nano_banana", "openai_image"):
-        providers = [mode]
+        viewports = ["desktop", "mobile"]
+    elif mode in ("desktop", "mobile"):
+        viewports = [mode]
     else:
         return await hero_ab_page(request, error=f"unknown mode: {mode}")
 
@@ -770,8 +785,8 @@ async def hero_ab_launch(
     launched: dict[str, uuid.UUID] = {}
 
     async with inspector_http_client(api_base) as client:
-        for provider in providers:
-            body_obj = hero_ab.payload_for_provider(base, provider)
+        for viewport in viewports:
+            body_obj = hero_ab.payload_for_viewport(base, viewport)  # type: ignore[arg-type]
             raw = hero_ab.encode_signed_body(body_obj)
             headers = {
                 "Content-Type": "application/json",
@@ -786,18 +801,18 @@ async def hero_ab_launch(
             if api_resp.status_code not in (200, 202):
                 return await hero_ab_page(
                     request,
-                    error=f"{provider} launch failed ({api_resp.status_code}): {api_resp.text[:200]}",
+                    error=f"{viewport} launch failed ({api_resp.status_code}): {api_resp.text[:200]}",
                 )
             data = api_resp.json()
-            launched[provider] = uuid.UUID(str(data["agent_run_id"]))
+            launched[viewport] = uuid.UUID(str(data["agent_run_id"]))
 
-    google_id = launched.get("google_nano_banana")
-    openai_id = launched.get("openai_image")
+    desktop_id = launched.get("desktop")
+    mobile_id = launched.get("mobile")
     q = "poll=1"
-    if google_id:
-        q += f"&google_run={google_id}"
-    if openai_id:
-        q += f"&openai_run={openai_id}"
+    if desktop_id:
+        q += f"&desktop_run={desktop_id}"
+    if mobile_id:
+        q += f"&mobile_run={mobile_id}"
     return RedirectResponse(url=f"/inspector/hero-ab?{q}", status_code=303)
 
 

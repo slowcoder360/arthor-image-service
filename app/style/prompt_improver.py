@@ -16,6 +16,7 @@ from app.payload.hero_models import HeroCandidatesRequest, HeroVariantSlot, vari
 from app.payload.models import Slot
 from app.style.hero_prompt_compiler import CompiledHeroPrompt, compile_hero_triad_prompts, prompt_text_hash
 from app.style.profile import StyleProfile
+from app.style.hero_archetypes import resolve_hero_job
 from app.style.prompts import SlotPrompt
 
 logger = logging.getLogger(__name__)
@@ -29,9 +30,10 @@ Reply with ONLY the final prompt text — no markdown, no JSON, no explanation.
 Hard rules:
 - Never instruct rendering text, typography, logos, buttons, menus, tabs, icons, or UI chrome
 - Headline/subhead in input are for spatial planning only — size negative space, never quote or paint them
-- Match industry with concrete visual anchors (dental → operatory/chair cues, not generic spa/wellness)
-- Respect safe_area mode and inset_pct; top ~14% must stay empty wall/sky/gradient, NOT navigation
-- Honor people_policy, tone_angle intent, and do_not lists
+- Hero job first: show human trust, outcome, experience, or authority — not empty equipment or rooms
+- Industry sets backdrop only; avoid chair/operatory/conference-table/equipment as hero subject
+- Left copy zone: softer contrast, not a blank void — keep scene continuity across the frame
+- Respect people_policy, tone_angle intent, hero_job, and do_not lists
 - Incorporate palette hex as color-grading direction, not swatches of flat color
 - Photographic register unless input says otherwise
 - Stay under 1200 characters"""
@@ -80,6 +82,7 @@ def build_hero_improve_brief(
         },
         "variant": {
             "tone_angle": variant.tone_angle,
+            "hero_job": resolve_hero_job(variant.tone_angle),
             "intent": slot.intent,
             "copy": {
                 "headline": variant.headline,

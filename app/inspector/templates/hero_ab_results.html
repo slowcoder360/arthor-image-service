@@ -1,28 +1,33 @@
-<h2>Results</h2>
-{% if not google_run and not openai_run %}
-<p class="muted">Launch a run to compare providers here.</p>
+{% if desktop_run and desktop_prompts and desktop_prompts[0].compiler_version and desktop_prompts[0].compiler_version != '3.0' %}
+<p class="banner error">This desktop run used compiler v{{ desktop_prompts[0].compiler_version }} (pre–v3 strategy). Launch a fresh run — server must be restarted after deploy.</p>
+{% endif %}
+{% if mobile_run and mobile_prompts and mobile_prompts[0].compiler_version and mobile_prompts[0].compiler_version != '3.0' %}
+<p class="banner error">This mobile run used compiler v{{ mobile_prompts[0].compiler_version }} (pre–v3 strategy). Launch a fresh run — server must be restarted after deploy.</p>
+{% endif %}
+{% if not desktop_run and not mobile_run %}
+<p class="muted">Launch a run to compare desktop vs mobile headers here.</p>
 {% else %}
 {% if polling_note %}
 <p class="muted polling-note">{{ polling_note }}</p>
 {% endif %}
 {% set terminal = ['complete', 'partial', 'failed'] %}
-{% set all_done = poll_done if poll_done is defined else ((not google_run or google_status in terminal) and (not openai_run or openai_status in terminal)) %}
+{% set all_done = poll_done if poll_done is defined else ((not desktop_run or desktop_status in terminal) and (not mobile_run or mobile_status in terminal)) %}
 <div {% if all_done %}data-poll-done="1"{% endif %} class="ab-compare">
-  {% if google_run %}
-  <div class="ab-arm" {% if google_status in terminal %}data-arm-done="1"{% endif %}>
-    <h3>Google <span class="badge {% if google_status == 'complete' %}ok{% elif google_status == 'failed' %}fail{% else %}pending{% endif %}">{{ google_status or '—' }}</span></h3>
-    <p class="muted"><code>{{ google_run }}</code></p>
-    {% if google_prompts %}
+  {% if desktop_run %}
+  <div class="ab-arm" {% if desktop_status in terminal %}data-arm-done="1"{% endif %}>
+    <h3>{{ desktop_arm_title or 'Desktop header' }} <span class="badge {% if desktop_status == 'complete' %}ok{% elif desktop_status == 'failed' %}fail{% else %}pending{% endif %}">{{ desktop_status or '—' }}</span></h3>
+    <p class="muted"><code>{{ desktop_run }}</code></p>
+    {% if desktop_prompts %}
     <details class="ab-prompts">
-      <summary>Compiled prompts (pre-image)</summary>
-      {% for p in google_prompts %}
-      <pre class="prompt-block">{{ p.tone_angle or p.variant_index }}: {{ p.prompt }}</pre>
+      <summary>Compiled prompts (pre-image){% if desktop_prompts[0].compiler_version %} · compiler v{{ desktop_prompts[0].compiler_version }}{% endif %}</summary>
+      {% for p in desktop_prompts %}
+      <pre class="prompt-block">{{ p.hero_job or '?' }} / {{ p.tone_angle or p.variant_index }}: {{ p.prompt }}</pre>
       {% endfor %}
     </details>
     {% endif %}
-    {% if google_urls %}
+    {% if desktop_urls %}
     <div class="ab-triad">
-      {% for u in google_urls %}
+      {% for u in desktop_urls %}
       <figure>
         <figcaption>{{ u.tone_angle or u.variant_index }} — {{ u.headline or '' }}</figcaption>
         <a href="{{ u.url }}" target="_blank" rel="noopener">
@@ -31,39 +36,39 @@
       </figure>
       {% endfor %}
     </div>
-    {% elif google_status == 'failed' %}
-    <p class="banner error">{% if google_error %}{{ google_error }}{% else %}Run failed — check server logs / asset rows.{% endif %}</p>
+    {% elif desktop_status == 'failed' %}
+    <p class="banner error">{% if desktop_error %}{{ desktop_error }}{% else %}Run failed — check server logs / asset rows.{% endif %}</p>
     {% else %}
     <p class="muted">Generating…</p>
     {% endif %}
   </div>
   {% endif %}
 
-  {% if openai_run %}
-  <div class="ab-arm" {% if openai_status in terminal %}data-arm-done="1"{% endif %}>
-    <h3>OpenAI <span class="badge {% if openai_status == 'complete' %}ok{% elif openai_status == 'failed' %}fail{% else %}pending{% endif %}">{{ openai_status or '—' }}</span></h3>
-    <p class="muted"><code>{{ openai_run }}</code></p>
-    {% if openai_prompts %}
+  {% if mobile_run %}
+  <div class="ab-arm" {% if mobile_status in terminal %}data-arm-done="1"{% endif %}>
+    <h3>{{ mobile_arm_title or 'Mobile header' }} <span class="badge {% if mobile_status == 'complete' %}ok{% elif mobile_status == 'failed' %}fail{% else %}pending{% endif %}">{{ mobile_status or '—' }}</span></h3>
+    <p class="muted"><code>{{ mobile_run }}</code></p>
+    {% if mobile_prompts %}
     <details class="ab-prompts">
-      <summary>Compiled prompts (pre-image)</summary>
-      {% for p in openai_prompts %}
-      <pre class="prompt-block">{{ p.tone_angle or p.variant_index }}: {{ p.prompt }}</pre>
+      <summary>Compiled prompts (pre-image){% if mobile_prompts[0].compiler_version %} · compiler v{{ mobile_prompts[0].compiler_version }}{% endif %}</summary>
+      {% for p in mobile_prompts %}
+      <pre class="prompt-block">{{ p.hero_job or '?' }} / {{ p.tone_angle or p.variant_index }}: {{ p.prompt }}</pre>
       {% endfor %}
     </details>
     {% endif %}
-    {% if openai_urls %}
+    {% if mobile_urls %}
     <div class="ab-triad">
-      {% for u in openai_urls %}
+      {% for u in mobile_urls %}
       <figure>
         <figcaption>{{ u.tone_angle or u.variant_index }} — {{ u.headline or '' }}</figcaption>
         <a href="{{ u.url }}" target="_blank" rel="noopener">
-          <img src="{{ u.url }}" alt="variant {{ u.variant_index }}" class="hero-thumb" loading="lazy" />
+          <img src="{{ u.url }}" alt="variant {{ u.variant_index }}" class="hero-thumb hero-thumb-mobile" loading="lazy" />
         </a>
       </figure>
       {% endfor %}
     </div>
-    {% elif openai_status == 'failed' %}
-    <p class="banner error">{% if openai_error %}{{ openai_error }}{% else %}Run failed — check server logs / asset rows.{% endif %}</p>
+    {% elif mobile_status == 'failed' %}
+    <p class="banner error">{% if mobile_error %}{{ mobile_error }}{% else %}Run failed — check server logs / asset rows.{% endif %}</p>
     {% else %}
     <p class="muted">Generating…</p>
     {% endif %}

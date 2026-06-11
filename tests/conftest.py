@@ -15,11 +15,20 @@ if str(_REPO_ROOT) not in sys.path:
 
 
 REQUIRES_DB_ENV = "DATABASE_URL"
+def _r2_configured() -> bool:
+    access = os.getenv("R2_ACCESS_KEY_ID")
+    secret = os.getenv("R2_SECRET_ACCESS_KEY")
+    bucket = os.getenv("R2_BUCKET") or os.getenv("R2_BUCKET_NAME")
+    endpoint = os.getenv("R2_ENDPOINT_URL")
+    account = os.getenv("R2_ACCOUNT_ID")
+    return bool(access and secret and bucket and (endpoint or account))
+
+
 REQUIRES_R2_ENVS = (
-    "R2_ENDPOINT_URL",
     "R2_ACCESS_KEY_ID",
     "R2_SECRET_ACCESS_KEY",
-    "R2_BUCKET",
+    "(R2_BUCKET or R2_BUCKET_NAME)",
+    "(R2_ENDPOINT_URL or R2_ACCOUNT_ID)",
 )
 
 
@@ -46,9 +55,9 @@ def pytest_collection_modifyitems(
             if "requires_db" in item.keywords:
                 item.add_marker(skip_db)
 
-    if not all(os.getenv(name) for name in REQUIRES_R2_ENVS):
+    if not _r2_configured():
         skip_r2 = pytest.mark.skip(
-            reason=f"R2_* envs unset (need {', '.join(REQUIRES_R2_ENVS)})"
+            reason="R2 envs unset (need access key, secret, bucket name, endpoint or account id)"
         )
         for item in items:
             if "requires_r2" in item.keywords:

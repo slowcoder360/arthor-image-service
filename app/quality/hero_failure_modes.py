@@ -6,6 +6,7 @@ FAILURE_MODES = frozenset(
     {
         "rendered_ui",
         "rendered_text",
+        "safe_zone_violation",
         "wrong_industry",
         "posed_faces_violation",
         "moderation_blocked",
@@ -16,6 +17,31 @@ FAILURE_MODES = frozenset(
         "unknown",
     }
 )
+
+_FAILURE_MODE_PRIORITY: tuple[str, ...] = (
+    "moderation_blocked",
+    "provider_timeout",
+    "stale_orphaned_run",
+    "provider_error",
+    "rendered_text",
+    "rendered_ui",
+    "safe_zone_violation",
+    "palette_drift",
+    "wrong_industry",
+    "posed_faces_violation",
+    "unknown",
+)
+
+
+def pick_primary_failure_mode(*modes: str | None) -> str | None:
+    """Choose a single failure_mode when multiple QA signals fire."""
+    candidates = [m for m in modes if m]
+    if not candidates:
+        return None
+    for label in _FAILURE_MODE_PRIORITY:
+        if label in candidates:
+            return label
+    return candidates[0]
 
 
 def classify_hero_failure(error: str | None, *, palette_drift: bool = False) -> str:

@@ -28,7 +28,7 @@ def test_offer_tone_safe_area_inset_45():
 
 
 @pytest.mark.asyncio
-async def test_story_prompt_excludes_navigation_wording():
+async def test_story_prompt_excludes_navigation_wording_and_empty_left_void():
     raw = _build_hero_request()
     req = HeroCandidatesRequest.model_validate(raw)
     from app.style.hero_prompt_compiler import compile_hero_triad_prompts
@@ -39,6 +39,7 @@ async def test_story_prompt_excludes_navigation_wording():
     story = prompts[1].prompt.lower()
     assert "navigation overlay" not in story
     assert "never navigation" in story
+    assert "blank void" in story or "empty left half" in story
     assert req.variants[1].headline not in prompts[1].prompt
 
 
@@ -101,3 +102,10 @@ def test_settings_model_defaults():
     s = Settings()
     assert s.openai_image_model == "gpt-image-2"
     assert s.hero_default_provider == "openai_image"
+
+
+def test_google_pro_model_cost_for_hero_size():
+    from app.providers.google_nano_banana import GoogleCostTable
+
+    cents = GoogleCostTable.cost_for("gemini-3-pro-image", (1536, 1024))
+    assert isinstance(cents, int) and cents > 0

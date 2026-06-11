@@ -81,6 +81,9 @@ class CustomerReferenceAsset(BaseModel):
     role: Literal["interior", "team", "product", "logo", "ambient"]
     url: HttpUrl
     palette_hex: list[HexColor] = Field(default_factory=list)
+    usage_hint: str | None = None
+    note: str | None = None
+    likeness_consent: bool = False
 
 
 class BrandVisual(BaseModel):

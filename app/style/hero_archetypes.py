@@ -1,4 +1,4 @@
-"""Shared industry archetypes and tone rules for hero slot mapping + prompt compile."""
+"""Hero job templates, industry backdrop modifiers, and tone rules for prompt compile."""
 
 from __future__ import annotations
 
@@ -8,110 +8,177 @@ from typing import Literal
 from app.payload.models import SlotPeoplePolicy
 
 ToneAngle = Literal["search", "story", "offer"] | None
+HeroJob = Literal["trust", "outcome", "experience", "authority"]
 
+TONE_TO_JOB: dict[str, HeroJob] = {
+    "search": "trust",
+    "story": "experience",
+    "offer": "outcome",
+}
+
+# Left safe zone: softer contrast for copy legibility — not a blank void.
 TONE_COMPOSITION: dict[str, str] = {
     "search": (
-        "subject and detail weighted to the center-right third; "
-        "left 40% kept visually quiet for search-intent headline overlay"
+        "Primary human subject and emotional focal point in the center-right two-thirds; "
+        "left third slightly softer in contrast and detail so headline copy remains legible — "
+        "continue natural environment across the full width; never a blank wall or empty left half"
     ),
     "story": (
-        "subject and emotional focal point in the right third; "
-        "left 40% soft negative space for trust-building headline overlay"
+        "Human connection moment anchored in the right half; "
+        "left third gentler contrast for trust-building copy — "
+        "keep warmth and contextual detail across frame; avoid sterile empty space on the left"
     ),
     "offer": (
-        "subject anchored lower-right; "
-        "upper-left 45% clear and lower-contrast for offer headline, subhead, and CTA overlay"
+        "Outcome or relief moment anchored lower-right; "
+        "upper-left and lower-left slightly lower-contrast for offer copy and CTA — "
+        "still a full, balanced scene; do not sacrifice subject for an oversized empty copy zone"
     ),
 }
 
 TONE_PEOPLE: dict[str, str] = {
-    "search": "no posed people; empty or incidental blurred figures only",
-    "story": "no direct-to-camera portraits; optional soft profile or empty room",
-    "offer": "no full patient/customer portrait; empty focal area for CTA overlay",
+    "search": (
+        "candid human trust moment — provider and customer in natural consultation or warm interaction; "
+        "soft three-quarter or profile acceptable; not stock grin at camera; not empty room"
+    ),
+    "story": (
+        "authentic human connection in context — conversation, reassurance, or relaxed experience; "
+        "natural profiles and gestures; not posed advertisement; not equipment as hero"
+    ),
+    "offer": (
+        "visible outcome or relief — confident smile, family at ease, customer satisfied; "
+        "subject stays right-weighted; not empty focal area; not direct-to-camera stock portrait"
+    ),
 }
+
+GLOBAL_HERO_AVOID: tuple[str, ...] = (
+    "dental chair or operatory as hero subject",
+    "empty equipment as hero subject",
+    "blank left half or empty void reserved for copy",
+    "sterile copy-zone wall with no scene continuity",
+    "stock smile staring at camera",
+    "website mockups",
+    "rendered words or signage text",
+)
 
 
 @dataclass(frozen=True)
-class IndustryArchetype:
-    """Match keys are lowercase substrings tested against ``business.industry``."""
+class IndustryContext:
+    """Industry provides backdrop + job-specific scenes; never equipment-as-hero."""
 
     match_keys: tuple[str, ...]
     label: str
-    scene: str
-    anchors: tuple[str, ...]
+    backdrop: str
+    trust: str
+    outcome: str
+    experience: str
+    authority: str
     feel: str
     avoid_extra: tuple[str, ...] = ()
 
 
-_DEFAULT: IndustryArchetype = IndustryArchetype(
+_DEFAULT: IndustryContext = IndustryContext(
     match_keys=(),
     label="general_services",
-    scene="credible local professional service environment",
-    anchors=("authentic workspace", "natural materials", "real-world detail"),
+    backdrop="credible local professional service setting",
+    trust="professional and customer in genuine consultation or helpful conversation",
+    outcome="customer confident, relieved, or satisfied after service",
+    experience="warm, approachable local business atmosphere with natural light",
+    authority="experienced professional explaining options to an engaged customer",
     feel="trustworthy, approachable, locally rooted",
+    avoid_extra=("generic stock office", "empty workspace as hero"),
 )
 
-INDUSTRY_ARCHETYPES: tuple[IndustryArchetype, ...] = (
-    IndustryArchetype(
+INDUSTRY_CONTEXTS: tuple[IndustryContext, ...] = (
+    IndustryContext(
         match_keys=("dental", "dentist", "orthodont"),
         label="dental",
-        scene="modern dental practice interior",
-        anchors=(
-            "dental operatory or welcoming reception",
-            "dental chair silhouette or instrument tray",
-            "warm clinical cleanliness without hospital sterility",
-        ),
+        backdrop="warm private consultation room — no operatory, no dental chair in frame",
+        trust="dentist and patient in calm face-to-face consultation; conversation and trust, equipment absent or fully out of frame",
+        outcome="confident natural smile, parent and child at ease after visit, genuine relief — never posed with dental chair",
+        experience="relaxed patient in welcoming setting, soft natural light — human warmth, not clinical equipment",
+        authority="dentist explaining treatment plan while patient listens; whiteboard or tablet ok, never operatory hero shot",
         feel="calm, hygienic, family-friendly dentistry",
-        avoid_extra=("generic spa/wellness lobby", "medical hospital corridor"),
+        avoid_extra=(
+            "empty dental chair as focal point",
+            "dental operatory or instrument tray as hero",
+            "x-ray machine or clinical hardware hero",
+            "reception desk as main subject",
+            "generic spa/wellness lobby",
+        ),
     ),
-    IndustryArchetype(
+    IndustryContext(
         match_keys=("legal", "law", "attorney", "lawyer"),
         label="legal",
-        scene="professional law office interior",
-        anchors=(
-            "library shelves or conference table",
-            "subtle wood and leather textures",
-            "confident professional atmosphere",
-        ),
+        backdrop="measured professional law office — human consultation, not empty conference room",
+        trust="attorney listening to and helping a client across a desk; mutual focus",
+        outcome="client relieved and confident after consultation",
+        experience="authoritative yet approachable office warmth; subtle wood and natural light",
+        authority="attorney reviewing case details with client engaged in discussion",
         feel="authoritative, measured, trustworthy counsel",
-        avoid_extra=("courtroom drama", "judge robes", "gavel clichés"),
+        avoid_extra=(
+            "empty conference room as hero",
+            "library shelves or gavel as focal point",
+            "courtroom drama",
+            "judge robes",
+        ),
     ),
-    IndustryArchetype(
+    IndustryContext(
         match_keys=("hvac", "plumb", "electric", "contractor", "roofing"),
         label="home_services",
-        scene="residential service context",
-        anchors=(
-            "well-maintained home interior or exterior",
-            "technician tools implied but not posed advertisement",
-            "honest trades craftsmanship",
-        ),
+        backdrop="well-maintained home — comfort and protection, not equipment hero",
+        trust="technician in respectful conversation with homeowner; honest local expertise",
+        outcome="comfortable family relaxed at home; protected, cool, or safe feeling",
+        experience="warm natural light in a cared-for home interior or exterior",
+        authority="skilled tradesperson demonstrating expertise while homeowner watches with confidence",
         feel="reliable, local, no-nonsense expertise",
-        avoid_extra=("stock van wrap mockups", "overposed uniform models"),
+        avoid_extra=(
+            "air conditioner or roof as hero subject",
+            "technician van wrap mockup",
+            "tools or equipment as focal point",
+            "overposed uniform models",
+        ),
     ),
-    IndustryArchetype(
+    IndustryContext(
         match_keys=("health", "medical", "clinic", "therapy", "chiro"),
         label="healthcare",
-        scene="welcoming healthcare office",
-        anchors=(
-            "clean treatment or consultation room",
-            "soft natural light",
-            "human-centered care environment",
-        ),
+        backdrop="welcoming healthcare office — human-centered, not treatment-room equipment hero",
+        trust="provider and patient in reassuring consultation; human connection",
+        outcome="patient at ease, genuine relief or progress moment",
+        experience="soft natural light, relaxed patient, spa-like calm without clinical coldness",
+        authority="provider reviewing scans or plan with patient engaged",
         feel="reassuring, competent, patient-centered",
-        avoid_extra=("explicit procedures", "patient faces in close-up"),
+        avoid_extra=(
+            "empty therapy couch or exam table as hero",
+            "explicit medical procedures",
+            "clinical hardware as focal point",
+            "identifiable patient close-up",
+        ),
     ),
     _DEFAULT,
 )
 
+# Backward-compatible alias for compiler metadata fields.
+IndustryArchetype = IndustryContext
+INDUSTRY_ARCHETYPES = INDUSTRY_CONTEXTS
 
-def resolve_industry(industry: str) -> IndustryArchetype:
+
+def resolve_hero_job(tone_angle: ToneAngle) -> HeroJob:
+    tone = tone_angle or "search"
+    return TONE_TO_JOB.get(tone, "trust")
+
+
+def resolve_industry(industry: str) -> IndustryContext:
     low = industry.lower()
-    for archetype in INDUSTRY_ARCHETYPES:
-        if not archetype.match_keys:
+    for ctx in INDUSTRY_CONTEXTS:
+        if not ctx.match_keys:
             continue
-        if any(k in low for k in archetype.match_keys):
-            return archetype
+        if any(k in low for k in ctx.match_keys):
+            return ctx
     return _DEFAULT
+
+
+def hero_job_scene(ctx: IndustryContext, job: HeroJob) -> str:
+    return getattr(ctx, job)
 
 
 def format_locale(*, city: str | None, region: str | None, country: str) -> str:
@@ -135,13 +202,14 @@ def variant_subject_primary(
     tone_angle: ToneAngle,
     priority_services: list[str],
 ) -> str:
-    archetype = resolve_industry(industry)
-    anchors = ", ".join(archetype.anchors[:3])
+    ctx = resolve_industry(industry)
+    job = resolve_hero_job(tone_angle)
+    scene = hero_job_scene(ctx, job)
     tone = tone_angle or "search"
     people = TONE_PEOPLE.get(tone, TONE_PEOPLE["search"])
     base = (
-        f"{archetype.scene} in {locale} ({archetype.label}); "
-        f"visual anchors: {anchors}; not a generic spa or stock wellness lobby"
+        f"Hero job ({job}): {scene} in {ctx.backdrop}, {locale} ({ctx.label}); "
+        f"show what the customer wants, not what the business owns"
     )
     if priority_services:
         svc = ", ".join(priority_services[:2])
@@ -152,10 +220,13 @@ def variant_subject_primary(
 def variant_setting(tone_angle: ToneAngle) -> str:
     if tone_angle and tone_angle in TONE_COMPOSITION:
         return TONE_COMPOSITION[tone_angle]
-    return "subject off-center with generous negative space reserved for homepage copy overlay"
+    return (
+        "human subject right-weighted with softer left contrast for copy overlay — "
+        "full scene across frame, not empty left half"
+    )
 
 
 def variant_people_policy(tone_angle: ToneAngle) -> SlotPeoplePolicy:
     tone = tone_angle or "search"
     notes = TONE_PEOPLE.get(tone, TONE_PEOPLE["search"])
-    return SlotPeoplePolicy(faces_allowed=False, notes=notes)
+    return SlotPeoplePolicy(faces_allowed=True, notes=notes)

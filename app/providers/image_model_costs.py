@@ -81,12 +81,11 @@ IMAGE_MODEL_COST_REFERENCE: tuple[ModelCostRow, ...] = (
     ),
     ModelCostRow(
         "google_nano_banana",
-        "gemini-2.5-flash-image",
-        "Gemini 2.5 Flash Image",
+        "gemini-3-pro-image",
+        "Gemini 3 Pro Image (Nano Banana Pro)",
         "medium",
-        6,
-        "Default Google tier (nano-banana). Fast; variable industry fidelity.",
-        in_service_default=True,
+        13,
+        "Max Google tier — best fidelity/instruction following; ~2× flash cost.",
     ),
     ModelCostRow(
         "google_nano_banana",
@@ -94,7 +93,16 @@ IMAGE_MODEL_COST_REFERENCE: tuple[ModelCostRow, ...] = (
         "Gemini 3.1 Flash Image",
         "medium",
         7,
-        "Candidate upgrade — better instruction following; evaluate via A/B lab.",
+        "Mid-tier upgrade — better instruction following; evaluate via A/B lab.",
+    ),
+    ModelCostRow(
+        "google_nano_banana",
+        "gemini-2.5-flash-image",
+        "Gemini 2.5 Flash Image",
+        "medium",
+        6,
+        "Legacy flash tier; fast but prone to artifacts on human scenes.",
+        in_service_default=True,
     ),
 )
 

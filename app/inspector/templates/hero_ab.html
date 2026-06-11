@@ -1,11 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Hero A/B{% endblock %}
+{% block title %}Hero viewport lab{% endblock %}
 {% block content %}
-<h1>Hero candidates A/B lab</h1>
+<h1>Hero viewport lab</h1>
 <p class="muted">
   Edit the payload arthor-ai sends to <code>POST /images/hero-candidates/generate</code>,
-  then launch Google vs OpenAI side-by-side. Poll until each arm returns 3 URLs.
-  <em class="muted">Status polling hits this service only (DB read) — not Google/OpenAI.</em>
+  then launch OpenAI desktop vs mobile headers side-by-side. Poll until each arm returns 3 URLs.
+  <em class="muted">Status polling hits this service only (DB read) — not OpenAI.</em>
+</p>
+<p class="muted">
+  Provider: <code>{{ openai_label }}</code>
+  (<code>OPENAI_IMAGE_MODEL</code> — restart after env change).
+  Desktop 1536×1024 · Mobile 1024×1536 portrait.
 </p>
 
 {% if error %}
@@ -14,10 +19,13 @@
 
 <div class="ab-layout">
   <section class="panel ab-editor">
-    <h2>Request payload</h2>
+    <h2>Ingress payload (arthor-ai → image-service)</h2>
     <p class="muted">
-      Shape matches arthor-ai <code>heroCandidatesRequestSchema</code>
-      (<code>site_id</code>, <code>business</code>, <code>variants[3]</code>, …).
+      This JSON is the <strong>request contract</strong> — business, brand, headlines for layout metrics.
+      Set <code>hero_viewport</code> per arm at launch (desktop or mobile). At POST time we compile
+      <code>metadata.hero_provider_prompts[]</code> (job-first v2 prompts); those appear under
+      <em>Compiled prompts</em> in Results after you launch.
+      Shape matches arthor-ai <code>heroCandidatesRequestSchema</code>.
       <a href="/inspector/hero-ab?load_latest=1">Load latest from DB</a>
       · <a href="/inspector/hero-ab">Reset sample</a>
     </p>
@@ -25,9 +33,9 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
       <textarea name="payload_json" class="json-editor" rows="28" spellcheck="false">{{ payload_text }}</textarea>
       <div class="toolbar">
-        <button type="submit" name="mode" value="google_nano_banana">Run Google (A)</button>
-        <button type="submit" name="mode" value="openai_image">Run OpenAI (B)</button>
-        <button type="submit" name="mode" value="both">Run A/B both</button>
+        <button type="submit" name="mode" value="desktop">Run {{ desktop_arm_title }}</button>
+        <button type="submit" name="mode" value="mobile">Run {{ mobile_arm_title }}</button>
+        <button type="submit" name="mode" value="both">Run both viewports</button>
       </div>
     </form>
   </section>
@@ -43,7 +51,7 @@
     <thead>
       <tr>
         <th>run_id</th>
-        <th>provider</th>
+        <th>viewport</th>
         <th>status</th>
         <th>cost</th>
         <th>started</th>
@@ -59,7 +67,7 @@
         <td>${{ '%.2f' % ((row.cost_cents or 0) / 100.0) }}</td>
         <td class="muted">{{ row.started_at }}</td>
         <td>
-          <a href="/inspector/hero-ab?google_run={{ row.id }}">view</a>
+          <a href="/inspector/hero-ab?{{ row.view_param }}={{ row.id }}">view</a>
         </td>
       </tr>
       {% else %}
@@ -70,7 +78,7 @@
 </section>
 
 <details class="panel">
-  <summary><strong>Image model costs</strong> (1536×1024 hero, reference Jun 2026)</summary>
+  <summary><strong>Image model costs</strong> (hero sizes, reference Jun 2026)</summary>
   <pre class="json">{{ image_model_costs }}</pre>
 </details>
 
@@ -83,29 +91,20 @@
 <script>
 (function () {
   const params = new URLSearchParams(window.location.search);
-  const googleRun = params.get("google_run") || "";
-  const openaiRun = params.get("openai_run") || "";
-  if (!googleRun && !openaiRun) return;
+  const desktopRun = params.get("desktop_run") || "";
+  const mobileRun = params.get("mobile_run") || "";
+  if (!desktopRun && !mobileRun) return;
 
   const MAX_POLLS = 60;
   const POLL_MS = 8000;
   let polls = 0;
   let timer = null;
-  let pollGoogle = googleRun;
-  let pollOpenai = openaiRun;
 
-  function syncDoneArmsFromDom() {
+  function pollAlreadyDone() {
     const el = document.getElementById("ab-results");
-    if (!el) return;
-    for (const arm of el.querySelectorAll(".ab-arm[data-arm-done='1']")) {
-      const code = arm.querySelector("code");
-      const id = code ? code.textContent.trim() : "";
-      if (id === googleRun) pollGoogle = "";
-      if (id === openaiRun) pollOpenai = "";
-    }
+    return el && el.querySelector("[data-poll-done='1']");
   }
-  syncDoneArmsFromDom();
-  if (!pollGoogle && !pollOpenai) return;
+  if (pollAlreadyDone()) return;
 
   function stopPolling() {
     if (timer !== null) {
@@ -125,12 +124,8 @@
       return;
     }
     const q = new URLSearchParams();
-    if (pollGoogle) q.set("google_run", pollGoogle);
-    if (pollOpenai) q.set("openai_run", pollOpenai);
-    if (!pollGoogle && !pollOpenai) {
-      stopPolling();
-      return;
-    }
+    if (desktopRun) q.set("desktop_run", desktopRun);
+    if (mobileRun) q.set("mobile_run", mobileRun);
     try {
       const res = await fetch("/inspector/hero-ab/poll?" + q.toString(), {
         headers: { "Accept": "text/html" },
@@ -143,11 +138,7 @@
       const html = await res.text();
       const el = document.getElementById("ab-results");
       if (el) el.innerHTML = html;
-      if (el) {
-        syncDoneArmsFromDom();
-      }
-      const done = el && el.querySelector("[data-poll-done='1']");
-      if (done || (!pollGoogle && !pollOpenai)) {
+      if (pollAlreadyDone()) {
         stopPolling();
         return;
       }
