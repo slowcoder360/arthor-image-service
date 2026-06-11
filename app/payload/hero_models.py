@@ -87,7 +87,7 @@ def _variant_subject_primary(request: HeroCandidatesRequest, variant: HeroVarian
 
 
 def variant_to_slot(request: HeroCandidatesRequest, variant: HeroVariantSlot, index: int) -> Slot:
-    """Map one triad variant to a homepage hero slot (16:9 @ 1920×1080)."""
+    """Map one triad variant to a homepage hero slot (16:9 @ 1536×1024, provider-supported)."""
     return Slot(
         slot_id=f"hero_candidate_{index}",
         ordinal=index,
@@ -112,7 +112,7 @@ def variant_to_slot(request: HeroCandidatesRequest, variant: HeroVariantSlot, in
         lighting_mood=SlotLightingMood(mood_tokens=[], contrast="medium"),
         layout=SlotLayout(
             aspect_ratio="16:9",
-            dimensions=SlotDimensions(w=1920, h=1080),
+            dimensions=SlotDimensions(w=1536, h=1024),
             safe_area=SlotSafeArea(mode="start", inset_pct=10),
             overlay_text_risk=True,
         ),
