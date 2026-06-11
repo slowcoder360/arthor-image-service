@@ -2,7 +2,7 @@
 
 **You paste only the meta prompt at the bottom.**
 
-**Status:** W21-H-A **DONE** on `pod/w21-h-hero-candidates` @ `11c5f14`. Active slice = **deploy smoke** for arthor-ai consumer.
+**Status:** Hero Visual Strategy wave **H1–H6 DONE** on `pod/w21-h-hero-candidates` @ `4d318bf`. Next: **arthor-ai consumer wire-up** using `plan/HERO-CANDIDATES-CONSUMER.md`.
 
 ---
 
@@ -11,9 +11,9 @@
 | ID | Status | HANDOFF | Branch | Done when |
 |----|--------|---------|--------|-----------|
 | W21-H-A | DONE | `HANDOFF-W21-H-HERO-CANDIDATES.md` | `pod/w21-h-hero-candidates` | pytest green |
-| **W21-H-D** | OPEN | `HANDOFF-W21-H-DEPLOY-SMOKE.md` | same branch | uvicorn smoke + dev-launch-ledger filled |
-
-**Downstream (arthor-ai repo):** W21-H-C consumer wire-up — separate chat.
+| **H1–H6** | DONE | `HANDOFF-HERO-VISUAL-STRATEGY.md` | same | OpenAI-only, compiler v3, QA, refs, regenerate, consumer doc |
+| **W21-H-C** | OPEN (arthor-ai) | `plan/HERO-CANDIDATES-CONSUMER.md` | arthor-ai repo | Builder wire-up: refs, regenerate, failure_mode |
+| W21-H-D | DONE | `HANDOFF-W21-H-DEPLOY-SMOKE.md` | same branch | smoke in dev-launch-ledger |
 
 ---
 

@@ -17,6 +17,7 @@ from app.orchestration.hero_worker import (
     run_hero_candidates_in_background,
     run_hero_variant_regenerate_in_background,
 )
+from app.orchestration.pack_worker import get_image_provider_for_services
 from app.payload.hero_models import (
     HeroCandidatesRequest,
     HeroRegenerateVariantBody,
@@ -325,8 +326,11 @@ async def regenerate_hero_variant(request: Request) -> JSONResponse:
             return JSONResponse(status_code=400, content={"detail": "original_payload_missing"})
 
     try:
-        hero_req = HeroCandidatesRequest.model_validate(payload_row["payload"])
-    except ValidationError as exc:
+        raw_payload = payload_row["payload"]
+        if isinstance(raw_payload, str):
+            raw_payload = json.loads(raw_payload)
+        hero_req = HeroCandidatesRequest.model_validate(raw_payload)
+    except (json.JSONDecodeError, ValidationError) as exc:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     payload = hero_request_to_payload_v1(hero_req)
@@ -353,7 +357,7 @@ async def regenerate_hero_variant(request: Request) -> JSONResponse:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     pname = "openai_image"
-    provider = services.providers.get(pname) if hasattr(services, "providers") else None
+    provider = get_image_provider_for_services(services, pname)
     model_version = getattr(provider, "model_version", "unknown")
     slot = req_eff.variants[variant_index]
     slot_obj = variant_to_slot(req_eff, slot, variant_index)

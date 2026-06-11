@@ -241,6 +241,43 @@ async def test_hero_regenerate_supersedes_old_asset(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_hero_regenerate_accepts_json_string_payload(monkeypatch, tmp_path):
+    """asyncpg may return jsonb as str — regenerate must parse before validate."""
+    pool = HeroFakePool()
+    app, _, _ = await _prepare_app(monkeypatch, tmp_path, pool=pool)
+    import app.routes.hero_candidates as hero_routes
+    from httpx import ASGITransport, AsyncClient
+    from app.auth.hmac import sign_body
+
+    worker_started = asyncio.Event()
+
+    async def _stub_regen(services, **kwargs):
+        worker_started.set()
+
+    monkeypatch.setattr(hero_routes, "run_hero_variant_regenerate_in_background", _stub_regen)
+
+    payload = _build_hero_request()
+    run_id, asset_id = _seed_hero_run_with_asset(pool.store, hero_payload=payload, seed=77)
+    for row in pool.store.payloads:
+        if row.get("agent_run_id") == run_id:
+            row["payload"] = json.dumps(row["payload"])
+
+    body = {"asset_id": str(asset_id), "edit_kind": "retry"}
+    raw = json.dumps(body).encode()
+    sig = sign_body("k", raw)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        resp = await client.post(
+            "/images/hero-candidates/regenerate-variant",
+            content=raw,
+            headers={"X-Arthor-Signature": sig},
+        )
+
+    assert resp.status_code == 202
+    await asyncio.wait_for(worker_started.wait(), timeout=2.0)
+
+
+@pytest.mark.asyncio
 async def test_hero_regenerate_rescene_changes_prompt_archetype(monkeypatch, tmp_path):
     from app.payload.hero_models import HeroCandidatesRequest, hero_request_to_payload_v1
     from app.orchestration.hero_worker import plan_hero_variant_regenerate
