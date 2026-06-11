@@ -11,10 +11,10 @@ from typing import Any
 
 from app.orchestration.pack_worker import (
     _call_generate_single,
-    _get_image_provider,
     _style_palette_hex,
     trim_tool_result,
 )
+from app.providers import get_provider
 from app.payload.hero_models import HeroCandidatesRequest, HeroEditKind, variant_to_slot
 from app.payload.models import PayloadV1
 from app.providers.openai_image import ProviderError
@@ -50,9 +50,21 @@ from app.style.hero_prompt_compiler import (
 from app.style.hero_archetypes import resolve_hero_job, resolve_industry
 from app.style.hero_visual_strategy import SCENE_CATALOG, SceneArchetypeId
 from app.style.hero_reference_plan import build_hero_reference_plan, resolve_reference_bytes_for_plan
+from app.style.hero_desktop_seed import load_desktop_seed_map, load_hero_asset_bytes
 from app.style.prompts import PROMPT_TEMPLATE_VERSION, build_slot_prompt
 
 logger = logging.getLogger(__name__)
+
+
+def _get_hero_image_provider(services: RuntimeServices) -> Any:
+    reg = getattr(services, "providers", None)
+    if isinstance(reg, dict) and "openai_image" in reg:
+        return reg["openai_image"]
+    return get_provider(
+        "openai_image",
+        services.settings,
+        quality=services.settings.hero_openai_image_quality,
+    )
 
 
 @dataclass
@@ -446,6 +458,7 @@ def plan_hero_variant_regenerate(
     prompt_modifier: str | None = None,
     scene_archetype: str | None = None,
     customer_reference_assets: list[Any] | None = None,
+    source_hero_asset_id: uuid.UUID | None = None,
 ) -> tuple[CompiledHeroPrompt, HeroCandidatesRequest, dict[str, Any]]:
     """Resolve provider prompt, seed, and edit metadata for a hero variant regenerate."""
     if variant_index < 0 or variant_index >= len(request.variants):
@@ -455,6 +468,7 @@ def plan_hero_variant_regenerate(
     edit_meta: dict[str, Any] = {"edit_kind": edit_kind, "variant_index": variant_index}
     scene_override: SceneArchetypeId | None = None
     modifier_eff: str | None = None
+    desktop_seed_edit = False
 
     if edit_kind == "tweak":
         modifier_eff = str(prompt_modifier or "").strip() or None
@@ -477,6 +491,13 @@ def plan_hero_variant_regenerate(
             raise ValueError("rescene_requires_scene_archetype")
         scene_override = archetype  # type: ignore[assignment]
         edit_meta["scene_archetype"] = archetype
+    elif edit_kind == "mobile_from_desktop":
+        if source_hero_asset_id is None:
+            raise ValueError("mobile_from_desktop_requires_source_hero_asset_id")
+        req_eff = request.model_copy(update={"hero_viewport": "mobile"})
+        desktop_seed_edit = True
+        edit_meta["source_hero_asset_id"] = str(source_hero_asset_id)
+        edit_meta["desktop_seed_edit"] = True
 
     variant = req_eff.variants[variant_index]
     prompt = compile_variant_prompt(
@@ -486,6 +507,7 @@ def plan_hero_variant_regenerate(
         style_profile,
         scene_archetype_override=scene_override,
         prompt_modifier=modifier_eff,
+        desktop_seed_edit=desktop_seed_edit,
     )
     ctx = resolve_industry(req_eff.business.industry)
     from app.style.hero_visual_strategy import resolve_variant_visual_strategy
@@ -524,6 +546,7 @@ async def run_hero_variant_regenerate_in_background(
     seed: int,
     pending_asset_id: uuid.UUID,
     edit_kind: HeroEditKind,
+    source_hero_asset_id: uuid.UUID | None = None,
 ) -> None:
     """Background single-variant hero regenerate — supersedes old asset on success."""
     sem = getattr(services, "asset_pack_semaphore", None)
@@ -538,10 +561,26 @@ async def run_hero_variant_regenerate_in_background(
         sem = asyncio.Semaphore(services.settings.max_concurrent_packs)
 
     pname = "openai_image"
-    provider = _get_image_provider(services, pname)
+    provider = _get_hero_image_provider(services)
     palette_hex = _style_palette_hex(style_profile)
     variant = request.variants[variant_index]
     slot = variant_to_slot(request, variant, variant_index)
+
+    reference_images: list[bytes] | None = None
+    if edit_kind == "mobile_from_desktop" and source_hero_asset_id is not None:
+        try:
+            ref_bytes = await load_hero_asset_bytes(pool, services, source_hero_asset_id)
+            reference_images = [ref_bytes]
+        except ValueError as exc:
+            await mark_asset_failed(pool, pending_asset_id, error=str(exc))
+            await update_run_status(
+                pool,
+                new_run_id,
+                status="failed",
+                error=str(exc),
+                finished=True,
+            )
+            return
 
     acquired = False
     await sem.acquire()
@@ -566,6 +605,7 @@ async def run_hero_variant_regenerate_in_background(
             pname=pname,
             palette_hex=palette_hex,
             job=job,
+            reference_images=reference_images,
         )
         if success:
             await _patch_asset_metadata(
@@ -624,7 +664,7 @@ async def run_hero_candidates_in_background(
     if pname != "openai_image":
         logger.info("hero_candidates forcing openai_image (requested %s)", pname)
         pname = "openai_image"
-    provider = _get_image_provider(services, pname)
+    provider = _get_hero_image_provider(services)
 
     acquired = False
     await sem.acquire()
@@ -633,9 +673,28 @@ async def run_hero_candidates_in_background(
     try:
         run_md = await _load_run_metadata(pool, run_id)
         reference_plan = run_md.get("reference_plan")
-        reference_images: list[bytes] | None = None
+        shared_reference_images: list[bytes] | None = None
+        desktop_seed_by_variant: dict[int, bytes] = {}
 
-        if isinstance(reference_plan, dict) and reference_plan.get("edit_enabled"):
+        if request.source_desktop_run_id is not None:
+            try:
+                desktop_seed_by_variant = await load_desktop_seed_map(
+                    pool,
+                    services,
+                    request.source_desktop_run_id,
+                    wait=True,
+                )
+            except ValueError as exc:
+                await update_run_status(
+                    pool,
+                    run_id,
+                    status="failed",
+                    error=str(exc),
+                    finished=True,
+                )
+                return
+
+        if isinstance(reference_plan, dict) and reference_plan.get("edit_enabled") and not desktop_seed_by_variant:
 
             async def _fetch_url(url: str) -> bytes:
                 fetcher = getattr(services, "reference_url_fetcher", None)
@@ -648,7 +707,7 @@ async def run_hero_candidates_in_background(
                     resp.raise_for_status()
                     return resp.content
 
-            reference_images, reference_plan = await resolve_reference_bytes_for_plan(
+            shared_reference_images, reference_plan = await resolve_reference_bytes_for_plan(
                 reference_plan,
                 fetch_url=_fetch_url,
             )
@@ -659,8 +718,8 @@ async def run_hero_candidates_in_background(
                     status="running",
                     metadata_patch={"reference_plan": reference_plan},
                 )
-            if not reference_images:
-                reference_images = None
+            if not shared_reference_images:
+                shared_reference_images = None
 
         precompiled = await _load_hero_provider_prompts(pool, run_id)
         jobs: list[_VariantJob] = []
@@ -712,6 +771,11 @@ async def run_hero_candidates_in_background(
                 )
             )
 
+        def _refs_for_variant(index: int) -> list[bytes] | None:
+            if index in desktop_seed_by_variant:
+                return [desktop_seed_by_variant[index]]
+            return shared_reference_images
+
         results = await asyncio.gather(
             *[
                 _generate_one_variant(
@@ -724,7 +788,7 @@ async def run_hero_candidates_in_background(
                     pname=pname,
                     palette_hex=palette_hex,
                     job=job,
-                    reference_images=reference_images,
+                    reference_images=_refs_for_variant(job.index),
                 )
                 for job in jobs
             ],

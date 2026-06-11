@@ -48,7 +48,7 @@ _HERO_CALLBACK_URL = "https://arthor-ai.invalid/hero-candidates-no-callback"
 
 HeroPayloadVersion = Literal["hero_candidates.1", "hero_candidates.2"]
 HeroViewport = Literal["desktop", "mobile"]
-HeroEditKind = Literal["retry", "tweak", "reference", "rescene"]
+HeroEditKind = Literal["retry", "tweak", "reference", "rescene", "mobile_from_desktop"]
 
 
 class HeroRegenerateVariantBody(BaseModel):
@@ -68,6 +68,7 @@ class HeroRegenerateVariantBody(BaseModel):
     prompt_modifier: str | None = None
     scene_archetype: str | None = None
     customer_reference_assets: list[CustomerReferenceAsset] | None = None
+    source_hero_asset_id: UUID4 | None = None
 
 
 class HeroCopyMetrics(BaseModel):
@@ -144,6 +145,13 @@ class HeroCandidatesRequest(BaseModel):
     default_provider_hint: PackProviderHint | None = None
     payload_version: HeroPayloadVersion = "hero_candidates.1"
     hero_viewport: HeroViewport = "desktop"
+    source_desktop_run_id: UUID4 | None = None
+
+    @model_validator(mode="after")
+    def _desktop_seed_requires_mobile(self) -> HeroCandidatesRequest:
+        if self.source_desktop_run_id is not None and self.hero_viewport != "mobile":
+            raise ValueError("source_desktop_run_id requires hero_viewport mobile")
+        return self
 
 
 def _variant_intent(variant: HeroVariantSlot) -> str:

@@ -131,7 +131,12 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
     style_profile = await resolve_style_profile(payload)
     visual_strategy = resolve_hero_visual_strategy(hero_req)
     reference_plan = build_hero_reference_plan(hero_req)
-    compiled_prompts = await finalize_hero_triad_prompts(services, hero_req, style_profile)
+    compiled_prompts = await finalize_hero_triad_prompts(
+        services,
+        hero_req,
+        style_profile,
+        desktop_seed_edit=hero_req.source_desktop_run_id is not None,
+    )
     improver_stats = getattr(services, "_last_hero_improver_stats", None)
     metadata_patch: dict[str, Any] = {
         "style_profile": style_profile_to_metadata(style_profile),
@@ -142,6 +147,9 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
         "hero_copy_overlay": build_hero_copy_overlay_metadata(hero_req),
         "payload_version": hero_req.payload_version,
     }
+    if hero_req.source_desktop_run_id is not None:
+        metadata_patch["source_desktop_run_id"] = str(hero_req.source_desktop_run_id)
+        metadata_patch["desktop_seed_edit"] = True
     if reference_plan is not None:
         metadata_patch["reference_plan"] = reference_plan
     if improver_stats:
@@ -352,6 +360,7 @@ async def regenerate_hero_variant(request: Request) -> JSONResponse:
             prompt_modifier=body.prompt_modifier,
             scene_archetype=body.scene_archetype,
             customer_reference_assets=body.customer_reference_assets,
+            source_hero_asset_id=body.source_hero_asset_id,
         )
     except ValueError as exc:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
@@ -387,6 +396,11 @@ async def regenerate_hero_variant(request: Request) -> JSONResponse:
             "hero_provider_prompts": [compiled.to_dict()],
             "hero_prompt_compiler_version": compiled.compiler_version,
             **({"reference_plan": edit_meta["reference_plan"]} if edit_meta.get("reference_plan") else {}),
+            **(
+                {"source_hero_asset_id": edit_meta["source_hero_asset_id"]}
+                if edit_meta.get("source_hero_asset_id")
+                else {}
+            ),
         },
     )
     pending_meta["run_id"] = str(new_run_id)
@@ -413,6 +427,7 @@ async def regenerate_hero_variant(request: Request) -> JSONResponse:
             seed=int(edit_meta["seed"]),
             pending_asset_id=new_asset_id,
             edit_kind=body.edit_kind,
+            source_hero_asset_id=body.source_hero_asset_id,
         )
     )
 

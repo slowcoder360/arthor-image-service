@@ -113,6 +113,7 @@ def compile_variant_prompt(
     *,
     scene_archetype_override: SceneArchetypeId | None = None,
     prompt_modifier: str | None = None,
+    desktop_seed_edit: bool = False,
 ) -> str:
     """Deterministic gpt-image-2 provider prompt for one hero variant."""
     brief = build_hero_prompt_brief(
@@ -123,6 +124,10 @@ def compile_variant_prompt(
         scene_archetype_override=scene_archetype_override,
     )
     prompt = serialize_openai_hero_prompt(brief)
+    if desktop_seed_edit:
+        from app.style.hero_desktop_seed import DESKTOP_SEED_EDIT_MODIFIER
+
+        prompt = f"{prompt}\n\nAdjust: {DESKTOP_SEED_EDIT_MODIFIER}"
     if prompt_modifier:
         adj = str(prompt_modifier).strip()
         if adj:
@@ -165,6 +170,8 @@ class CompiledHeroPrompt:
 def compile_hero_triad_prompts(
     request: HeroCandidatesRequest,
     style_profile: StyleProfile,
+    *,
+    desktop_seed_edit: bool = False,
 ) -> list[CompiledHeroPrompt]:
     """Compile all three hero prompts deterministically."""
     out: list[CompiledHeroPrompt] = []
@@ -172,7 +179,13 @@ def compile_hero_triad_prompts(
     for index, variant in enumerate(request.variants):
         slot = variant_to_slot(request, variant, index)
         seed = build_slot_prompt(style_profile, slot)
-        prompt = compile_variant_prompt(request, variant, index, style_profile)
+        prompt = compile_variant_prompt(
+            request,
+            variant,
+            index,
+            style_profile,
+            desktop_seed_edit=desktop_seed_edit,
+        )
         vstrategy = resolve_variant_visual_strategy(request, variant, index)
         out.append(
             CompiledHeroPrompt(

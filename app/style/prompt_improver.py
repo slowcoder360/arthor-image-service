@@ -237,9 +237,13 @@ async def finalize_hero_triad_prompts(
     services: Any,
     request: HeroCandidatesRequest,
     style_profile: StyleProfile,
+    *,
+    desktop_seed_edit: bool = False,
 ) -> list[CompiledHeroPrompt]:
     """Deterministic compile, then optional LLM pass (parallel, canary-gated)."""
-    compiled = compile_hero_triad_prompts(request, style_profile)
+    compiled = compile_hero_triad_prompts(
+        request, style_profile, desktop_seed_edit=desktop_seed_edit
+    )
     settings: Settings = services.settings
     if not settings.hero_prompt_improve_enabled:
         services._last_hero_improver_stats = None

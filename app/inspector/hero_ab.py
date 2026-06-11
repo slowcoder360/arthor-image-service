@@ -203,13 +203,20 @@ def default_hero_payload() -> dict[str, Any]:
     }
 
 
-def payload_for_viewport(base: dict[str, Any], viewport: HeroViewport) -> dict[str, Any]:
+def payload_for_viewport(
+    base: dict[str, Any],
+    viewport: HeroViewport,
+    *,
+    source_desktop_run_id: uuid.UUID | None = None,
+) -> dict[str, Any]:
     out = deepcopy(base)
     site_id = str(out.get("site_id") or uuid.uuid4())
     out["site_id"] = site_id
     out["hero_viewport"] = viewport
     out["default_provider_hint"] = HERO_PROVIDER
     out["idempotency_key"] = f"hero-ab:{viewport}:{uuid.uuid4()}"
+    if source_desktop_run_id is not None and viewport == "mobile":
+        out["source_desktop_run_id"] = str(source_desktop_run_id)
     return out
 
 

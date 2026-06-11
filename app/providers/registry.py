@@ -16,14 +16,14 @@ PROVIDERS: dict[str, type[ImageProvider]] = {
 }
 
 
-def get_provider(name: str, settings: Settings) -> ImageProvider:
+def get_provider(name: str, settings: Settings, *, quality: str | None = None) -> ImageProvider:
     cls = PROVIDERS[name]
     if cls is OpenAIImageProvider:
         api_key = settings.openai_api_key or "unset-openai-key"
         return OpenAIImageProvider(
             client=openai.AsyncOpenAI(api_key=api_key),
             model_version=settings.openai_image_model,
-            quality=settings.openai_image_quality,
+            quality=quality if quality is not None else settings.openai_image_quality,
         )
     if cls is GoogleNanoBananaProvider:
         api_key = settings.google_api_key or "unset-google-key"

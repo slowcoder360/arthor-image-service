@@ -760,6 +760,7 @@ async def hero_ab_launch(
     request: Request,
     payload_json: str = Form(...),
     mode: str = Form(...),
+    seed_desktop_run: str | None = Form(None),
     csrf_token: str | None = Form(None),
 ) -> Response:
     verify_csrf_token(request, csrf_token)
@@ -783,10 +784,27 @@ async def hero_ab_launch(
 
     api_base = _inspector_internal_api_base()
     launched: dict[str, uuid.UUID] = {}
+    seed_run: uuid.UUID | None = None
+    if seed_desktop_run and str(seed_desktop_run).strip():
+        try:
+            seed_run = uuid.UUID(str(seed_desktop_run).strip())
+        except ValueError:
+            return await hero_ab_page(request, error="invalid seed_desktop_run uuid")
 
     async with inspector_http_client(api_base) as client:
-        for viewport in viewports:
-            body_obj = hero_ab.payload_for_viewport(base, viewport)  # type: ignore[arg-type]
+        launch_order = viewports
+        if mode == "both":
+            launch_order = ["desktop", "mobile"]
+
+        for viewport in launch_order:
+            source_id = seed_run
+            if mode == "both" and viewport == "mobile" and "desktop" in launched:
+                source_id = launched["desktop"]
+            body_obj = hero_ab.payload_for_viewport(
+                base,
+                viewport,  # type: ignore[arg-type]
+                source_desktop_run_id=source_id if viewport == "mobile" else None,
+            )
             raw = hero_ab.encode_signed_body(body_obj)
             headers = {
                 "Content-Type": "application/json",

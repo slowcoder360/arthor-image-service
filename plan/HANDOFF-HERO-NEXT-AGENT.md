@@ -59,9 +59,9 @@ Invariants: … (not long Avoid lists)
 
 ## Immediate follow-ups (small, hero-only)
 
-1. **Desktop → mobile seed** — User wants winning desktop asset as reference for mobile (same people/setting). H4 edit path exists; wire `source_hero_asset_id` or `mobile_from_desktop` edit kind.
+1. **Desktop → mobile seed** — **DONE (2026-06-11).** `source_desktop_run_id` on generate; `edit_kind: mobile_from_desktop` + `source_hero_asset_id` on regenerate; OpenAI edit with portrait reframe modifier; inspector `both` mode seeds mobile from desktop run.
 2. **arthor-ai consumer** — W21-H-C wire-up from `HERO-CANDIDATES-CONSUMER.md` (refs, regenerate, `failure_mode`).
-3. **Hero `quality=high`** for finals — API param in `openai_image.py`, not prompt (DR 20).
+3. **Hero `quality=high`** — **DONE (2026-06-11).** `hero_openai_image_quality` default `high`; heroes use dedicated provider; edit path passes quality.
 
 ---
 
@@ -71,27 +71,17 @@ Invariants: … (not long Avoid lists)
 
 Beyond homepage hero triad: generate **headers for other pages** and **images for other sections** (services, about, etc.) with **exact pixel dimensions** per slot.
 
-### Architecture tension (needs decision with Justin)
+### Architecture — **locked (Justin 2026-06-11, W21-P Option C hybrid)**
 
-| Option | Owner of page comp | Flow |
-|--------|-------------------|------|
-| **A — image-service centric** | arthor-ai / builder agent submits per-slot payloads (like today hero) | Cursor agent or builder reads sitemap → POST narrow contracts per asset |
-| **B — SEO service centric** | **arthor-seo-service** owns sitemap, keyword planning, copy gen, **and full-page composition** | SEO service passes **one batch payload** to image-service: all image requests for a site with dimensions, tone, page_id, slot_id |
-| **C — hybrid** | SEO service emits **page spec / asset manifest** (JSON); image-service executes | Manifest = source of truth for pixel sizes + copy-safe zones; no LLM in image-service |
+| Layer | Owner | Artifact |
+|-------|-------|----------|
+| Planning | arthor-seo-service | `asset_pack_plan` (deterministic slots, dimensions, copy_context) |
+| Orchestration | arthor-ai | Merge plan + design-system → ADR-0010 PayloadV1 → submit + callback-or-poll |
+| Execution | arthor-image-service | Existing asset-pack pipeline — generate only, no planning LLM |
 
-**Context shift:** Sitemap + keyword + copy planning **moved to SEO service** — Option B/C more aligned than having Cursor agent hand-craft payloads.
+**Canonical spec:** `~/arthor-brainstorm/roadmap/arthor-image-planning-handoff.md` (W21-P). Pods in flight: seo plan module, seo-core templates, arthor-ai merge/submit.
 
-### Open questions for next agent
-
-- Does SEO service already have (or plan) a **page layout / asset manifest** schema?
-- Reuse **asset-pack** pipeline (`PayloadV1` + slots) vs new **site-images** contract?
-- Same **StyleProfile** + **OpenAI serializer** pattern for non-hero slots?
-- Idempotency: `site:{site_id}:page:{page_id}:slot:{slot_id}` ?
-- Inspector: new lab or extend hero-ab?
-
-### Suggested first step
-
-Read SEO service handoffs for page comp output shapes; draft ADR comparing **manifest-from-SEO** vs **per-request-from-builder**. Do **not** implement until Justin picks A/B/C.
+**Image-service role (after W21-P pods land):** Extend asset-pack slot generation to reuse hero quality patterns (OpenAI serializer, StyleProfile, QA gates) for `slot_kind: section_accent | card | og` — **no manifest schema work here**. First step: read W21-P plan shape → confirm PayloadV1 slots map cleanly → extend non-hero serializer variant if needed.
 
 ---
 
@@ -155,8 +145,8 @@ Inventory `app/style/profile.py`, `StyleProfile`, pack slot kinds; read brainsto
 
 ## Single concrete next step (pick with Justin)
 
-**If hero mobile seed:** small pod — desktop asset → reference edit for mobile viewport.
+**Hero mobile-seed + quality=high:** shipped — verify in inspector (`both` mode or mobile + `seed_desktop_run`).
 
-**If site-wide images:** cross-repo read → ADR **who owns page comp manifest** (SEO vs image-service).
+**If site-wide images:** wait for W21-P pods green → read `asset_pack_plan` shape → align PayloadV1 slot execution (no new ADR).
 
-**If illustrations:** StyleProfile + illustrated register + one prototype slot.
+**If illustrations:** StyleProfile + illustrated register + one prototype slot (deferred post site-wide E2E).

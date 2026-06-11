@@ -141,12 +141,15 @@ class OpenAIImageProvider:
             if reference_images:
                 source = io.BytesIO(reference_images[0])
                 source.name = "reference.png"
-                resp = await self._client.images.edit(
-                    model=self.model_version,
-                    prompt=prompt,
-                    image=source,
-                    size=f"{w}x{h}",
-                )
+                edit_kwargs: dict[str, Any] = {
+                    "model": self.model_version,
+                    "prompt": prompt,
+                    "image": source,
+                    "size": f"{w}x{h}",
+                }
+                if self._quality:
+                    edit_kwargs["quality"] = self._quality
+                resp = await self._client.images.edit(**edit_kwargs)
                 trimmed = _response_trim(resp, dimensions)
                 if len(reference_images) > 1:
                     trimmed["reference_warning"] = "multiple_reference_images_using_first_only"
