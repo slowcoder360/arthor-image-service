@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Cohort review{% endblock %}
+{% block content %}
+<h1>Hero cohort review</h1>
+<p class="muted">
+  Mark images good or bad and tag what's wrong. Reviews save to
+  <code>scratch/&lt;session&gt;/human_review.json</code>.
+</p>
+
+<form class="toolbar" method="get" action="/inspector/cohort-review">
+  <label>
+    Session
+    <select name="session" onchange="this.form.submit()">
+      <option value="all" {% if session == 'all' %}selected{% endif %}>All (with URLs, deduped)</option>
+      {% for s in sessions %}
+      <option value="{{ s }}" {% if session == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <a class="button-link" href="/inspector/cohort-review/export?session={{ session }}">Export CSV</a>
+</form>
+
+<div class="panel cohort-stats">
+  <dl class="kv">
+    <dt>Images</dt><dd>{{ stats.total }}</dd>
+    <dt>Reviewed</dt><dd>{{ stats.reviewed }}</dd>
+    <dt>Good</dt><dd>{{ stats.good }}</dd>
+    <dt>Bad</dt><dd>{{ stats.bad }}</dd>
+    <dt>Pending</dt><dd>{{ stats.pending }}</dd>
+  </dl>
+</div>
+
+{% if not items %}
+<p class="banner error">No cohort images found. Run <code>python scripts/hero_cohort_eval.py</code> first.</p>
+{% else %}
+<div class="cohort-grid">
+  {% for item in items %}
+  {% with key=item.key, session_name=item.session_name, url=item.url, industry_label=item.industry_label, tone_angle=item.tone_angle, slug=item.slug, headline=item.headline, run_status=item.run_status, auto_failure_mode=item.auto_failure_mode, auto_qa_pass=item.auto_qa_pass, review=item.review, issue_tags=issue_tags, saved=false %}
+  {% include "cohort_review_card.html" %}
+  {% endwith %}
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,66 @@
+<article class="cohort-card{% if review.verdict == 'bad' %} cohort-card-bad{% elif review.verdict == 'good' %} cohort-card-good{% endif %}" id="card-{{ key }}">
+  <div class="cohort-card-media">
+    {% if url %}
+    <a href="{{ url }}" target="_blank" rel="noopener">
+      <img src="{{ url }}" alt="{{ industry_label }} {{ tone_angle }}" class="cohort-thumb" loading="lazy" />
+    </a>
+    {% else %}
+    <div class="cohort-missing">No image (run {{ run_status }})</div>
+    {% endif %}
+  </div>
+  <div class="cohort-card-body">
+    <p class="cohort-meta">
+      <strong>{{ industry_label }}</strong>
+      · {{ tone_angle or "?" }}
+      · {{ slug }}
+      {% if auto_failure_mode and auto_failure_mode not in ('pass', 'no_image') %}
+      <span class="badge fail">{{ auto_failure_mode }}</span>
+      {% elif auto_qa_pass %}
+      <span class="badge ok">auto pass</span>
+      {% endif %}
+      {% if saved %}<span class="badge ok">saved</span>{% endif %}
+    </p>
+    {% if headline %}<p class="muted cohort-headline">{{ headline }}</p>{% endif %}
+
+    <form
+      class="cohort-review-form"
+      hx-post="/inspector/cohort-review/save"
+      hx-target="closest .cohort-card"
+      hx-swap="outerHTML"
+    >
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <input type="hidden" name="session_name" value="{{ session_name }}" />
+      <input type="hidden" name="item_key" value="{{ key }}" />
+
+      <fieldset class="cohort-verdict">
+        <legend class="muted">Your verdict</legend>
+        <label><input type="radio" name="verdict" value="good" {% if review.verdict == 'good' %}checked{% endif %} /> Good</label>
+        <label><input type="radio" name="verdict" value="bad" {% if review.verdict == 'bad' %}checked{% endif %} /> Bad</label>
+      </fieldset>
+
+      <fieldset class="cohort-issues">
+        <legend class="muted">What's wrong? (check all that apply)</legend>
+        <div class="cohort-issue-grid">
+          {% for tag, label in issue_tags %}
+          <label class="cohort-issue">
+            <input
+              type="checkbox"
+              name="issues"
+              value="{{ tag }}"
+              {% if tag in (review.issues or []) %}checked{% endif %}
+            />
+            {{ label }}
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <label class="cohort-notes-label">
+        <span class="muted">Notes</span>
+        <textarea name="notes" rows="2" placeholder="Specific fix for prompting…">{{ review.notes or '' }}</textarea>
+      </label>
+
+      <button type="submit">Save</button>
+    </form>
+  </div>
+</article>

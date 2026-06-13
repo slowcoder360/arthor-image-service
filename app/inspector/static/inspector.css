@@ -316,3 +316,129 @@ code {
   background: #3d1414;
   color: var(--err);
 }
+
+.cohort-stats {
+  margin-bottom: 1.5rem;
+}
+
+.cohort-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+.cohort-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.cohort-card-good {
+  border-color: #2a5a3a;
+}
+
+.cohort-card-bad {
+  border-color: #663333;
+}
+
+.cohort-card-media {
+  background: #0a0a0a;
+  padding: 0.5rem;
+}
+
+.cohort-thumb {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.cohort-missing {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.cohort-card-body {
+  padding: 0.75rem 1rem 1rem;
+}
+
+.cohort-meta {
+  margin: 0 0 0.35rem;
+  font-size: 0.88rem;
+}
+
+.cohort-headline {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+}
+
+.cohort-review-form fieldset {
+  border: none;
+  margin: 0 0 0.65rem;
+  padding: 0;
+}
+
+.cohort-review-form legend {
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.cohort-verdict label {
+  margin-right: 1rem;
+  font-size: 0.9rem;
+}
+
+.cohort-issue-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cohort-issue {
+  font-size: 0.8rem;
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
+.cohort-notes-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.78rem;
+}
+
+.cohort-notes-label textarea {
+  width: 100%;
+  padding: 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: #111;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 0.82rem;
+  resize: vertical;
+}
+
+.button-link {
+  display: inline-block;
+  padding: 0.45rem 0.9rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: #222;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.button-link:hover {
+  background: #2a2a2a;
+  text-decoration: none;
+}

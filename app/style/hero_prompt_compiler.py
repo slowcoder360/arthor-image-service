@@ -31,7 +31,7 @@ from app.style.hero_openai_prompt_serializer import (
 )
 from app.style.prompts import build_slot_prompt
 
-COMPILER_VERSION = "3.2"
+COMPILER_VERSION = "3.3"
 
 
 def build_hero_prompt_brief(

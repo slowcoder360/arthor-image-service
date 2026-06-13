@@ -19,8 +19,8 @@ SceneArchetypeId = Literal[
 
 AuthenticityMode = Literal["stylized", "space_anchored", "likeness_anchored"]
 
-STRATEGY_VERSION = "1.1"
-SCENE_CATALOG_VERSION = "1.1"
+STRATEGY_VERSION = "1.2"
+SCENE_CATALOG_VERSION = "1.2"
 
 _FAMILY_ICP_KEYS: tuple[str, ...] = (
     "famil",
@@ -41,6 +41,35 @@ _FAMILY_DENTAL_TRIAD: dict[str, SceneArchetypeId] = {
     "search": "shared_joy",
     "story": "shared_joy",
     "offer": "confident_smile",
+}
+
+# Cohort review 2026-06: avoid generic family/shared_joy at residential home for non-dental verticals.
+_INDUSTRY_SCENE_TRIAD: dict[str, dict[str, SceneArchetypeId]] = {
+    "legal": {
+        "search": "desk_side_guidance",
+        "story": "desk_side_guidance",
+        "offer": "confident_smile",
+    },
+    "home_services": {
+        "search": "desk_side_guidance",
+        "story": "desk_side_guidance",
+        "offer": "confident_smile",
+    },
+    "healthcare": {
+        "search": "desk_side_guidance",
+        "story": "desk_side_guidance",
+        "offer": "confident_smile",
+    },
+    "outdoor_services": {
+        "search": "confident_smile",
+        "story": "confident_smile",
+        "offer": "environment_warmth",
+    },
+    "general_services": {
+        "search": "desk_side_guidance",
+        "story": "desk_side_guidance",
+        "offer": "confident_smile",
+    },
 }
 
 
@@ -114,12 +143,18 @@ INDUSTRY_BACKDROP_MODIFIERS: dict[str, str] = {
         "bright modern dental clinic — reception, consult nook, or hallway with subtle practice cues "
         "(clean whites, soft blues, kid-friendly details); soft window light; clearly a dental office"
     ),
-    "legal": "measured professional law office warmth — human consultation, not empty conference room",
-    "home_services": "well-maintained home interior — comfort and protection, not equipment hero",
-    "healthcare": (
-        "welcoming medical clinic interior — clean, calm, human-centered; not treatment-room equipment hero"
+    "legal": "measured professional law office — attorney and client at desk, not family at threshold",
+    "home_services": (
+        "on-site home service visit — technician with homeowner at entryway or exterior; "
+        "active service conversation, not couch leisure"
     ),
-    "general_services": "credible local professional service setting with natural light",
+    "healthcare": (
+        "welcoming clinic or therapy office — professional attire; not gym, athletic wear, or residential interior"
+    ),
+    "outdoor_services": (
+        "outdoor property with lawn, garden, or yard maintenance visible — daylight, not indoor domestic scenes"
+    ),
+    "general_services": "professional service consult or on-site visit — not kitchen-table or couch leisure",
 }
 
 INDUSTRY_ENVIRONMENT_ANCHORS: dict[str, str] = {
@@ -129,8 +164,20 @@ INDUSTRY_ENVIRONMENT_ANCHORS: dict[str, str] = {
         "or instruments as focal point"
     ),
     "healthcare": (
-        "Environment anchors: recognizable clinic or medical office background; clean and reassuring; "
-        "no procedure room or clinical hardware as hero"
+        "Environment anchors: recognizable clinic or therapy office; clean consult room; "
+        "no gym equipment, athletic wear, or residential interior"
+    ),
+    "legal": (
+        "Environment anchors: law office consult room with desk or table; professional attire; "
+        "attorney and single client — not a family group at a doorway"
+    ),
+    "home_services": (
+        "Environment anchors: home exterior, entryway, or utility area with technician present; "
+        "visible service visit — not living-room couch leisure"
+    ),
+    "outdoor_services": (
+        "Environment anchors: lawn, garden, or landscaped yard; outdoor daylight; "
+        "crew or landscaper with homeowner on the property"
     ),
 }
 
@@ -140,7 +187,20 @@ INDUSTRY_SUBJECT_GUIDANCE: dict[str, str] = {
         "never a residential home, living room, or kitchen"
     ),
     "healthcare": (
-        "People are the hero subject; healthcare clinic environment visible — not a residential interior"
+        "Provider and patient in professional clinical attire; clinic environment visible — "
+        "not gym, athletic wear, or residential interior"
+    ),
+    "legal": (
+        "Attorney and client in one-on-one consultation — not a family walking through a doorway"
+    ),
+    "home_services": (
+        "Technician with homeowner during an on-site service visit — not passive family on a couch"
+    ),
+    "outdoor_services": (
+        "Landscaping or yard work context outdoors — not kitchen-table or living-room leisure"
+    ),
+    "general_services": (
+        "Provider and customer with visible service context — not domestic leisure without a service cue"
     ),
 }
 
@@ -174,16 +234,20 @@ def resolve_scene_archetype(
     if ctx.label == "dental" and family:
         return _FAMILY_DENTAL_TRIAD.get(tone, _TONE_DEFAULT_ARCHETYPE.get(tone, "confident_smile"))
 
+    industry_triad = _INDUSTRY_SCENE_TRIAD.get(ctx.label)
+    if industry_triad is not None:
+        return industry_triad.get(tone, _TONE_DEFAULT_ARCHETYPE.get(tone, "confident_smile"))
+
+    if tone == "offer":
+        return "confident_smile"
     if tone == "search" and family:
         return "shared_joy"
     if tone == "story" and family:
         return "shared_joy"
-    if tone == "offer":
-        return "confident_smile"
     if tone == "search":
-        return "threshold_invitation" if ctx.label in ("legal", "healthcare") else "confident_smile"
+        return "confident_smile"
     if tone == "story":
-        return "threshold_relief"
+        return "desk_side_guidance"
     return _TONE_DEFAULT_ARCHETYPE.get(tone, "confident_smile")
 
 

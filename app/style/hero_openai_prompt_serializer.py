@@ -119,9 +119,25 @@ def collect_invariants(
             "Recognizable dental clinic environment only — exclude residential home, living room, "
             "or kitchen interiors; exclude operatory, dental chair, and instrument close-ups as focal subjects."
         ),
+        "legal": (
+            "Attorney and client in professional law office consultation only — exclude family groups at "
+            "doorways, domestic home interiors, and courtroom drama."
+        ),
+        "home_services": (
+            "On-site home service visit — technician with homeowner at entryway, exterior, or utility area; "
+            "exclude couch leisure, family on sofa, and domestic scenes with no service interaction."
+        ),
         "healthcare": (
-            "Recognizable medical clinic environment — exclude residential interiors and "
-            "treatment-room equipment as hero subjects."
+            "Clinic or therapy office with provider and patient in professional clinical attire — exclude gym, "
+            "athletic wear, gym bags, fitness-studio aesthetics, and residential interiors."
+        ),
+        "outdoor_services": (
+            "Outdoor yard or landscaped property with maintenance work visible — exclude indoor kitchen, "
+            "couch leisure, and domestic scenes with no outdoor service context."
+        ),
+        "general_services": (
+            "Recognizable professional service context with provider and customer — exclude kitchen-table "
+            "lifestyle, couch leisure, and residential scenes with no service cues."
         ),
     }
     guards: list[str] = [core[0]]
@@ -143,6 +159,12 @@ def collect_invariants(
                 "dental chair",
                 "residential",
                 "living room",
+                "kitchen",
+                "couch",
+                "sofa",
+                "gym",
+                "athletic",
+                "family group",
                 "equipment",
                 "stock",
                 "signage",

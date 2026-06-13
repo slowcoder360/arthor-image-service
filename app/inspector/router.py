@@ -25,6 +25,7 @@ from starlette.responses import Response
 
 from app.auth.inspector_token import issue_inspector_cookie, require_inspector_token
 from app.auth.sign import sign_outbound
+from app.inspector import cohort_review
 from app.inspector import cost as cost_rollups
 from app.inspector import hero_ab
 from app.providers.image_model_costs import format_cost_table_markdown
@@ -884,6 +885,91 @@ async def inspector_soft_delete(
         "soft_deleted": True,
     }
     return _render_partial(request, "slot_prompt_modifier.html", ctx)
+
+
+@_protected.get("/cohort-review")
+async def cohort_review_page(
+    request: Request,
+    session: str = Query("all"),
+) -> Response:
+    items = cohort_review.load_cohort_items(session=session)
+    ctx = {
+        "session": session,
+        "sessions": cohort_review.list_eval_sessions(),
+        "items": items,
+        "stats": cohort_review.review_stats(items),
+        "issue_tags": cohort_review.REVIEW_ISSUE_TAGS,
+    }
+    return _render(request, "cohort_review.html", ctx)
+
+
+def _cohort_card_context(item: dict[str, Any], *, saved: bool = False) -> dict[str, Any]:
+    return {
+        "key": item["key"],
+        "session_name": item["session_name"],
+        "url": item["url"],
+        "industry_label": item["industry_label"],
+        "tone_angle": item["tone_angle"],
+        "slug": item["slug"],
+        "headline": item["headline"],
+        "run_status": item["run_status"],
+        "auto_failure_mode": item["auto_failure_mode"],
+        "auto_qa_pass": item["auto_qa_pass"],
+        "review": item.get("review") or {},
+        "issue_tags": cohort_review.REVIEW_ISSUE_TAGS,
+        "saved": saved,
+    }
+
+
+@_protected.post("/cohort-review/save")
+async def cohort_review_save(request: Request) -> Response:
+    form = await request.form()
+    verify_csrf_token(request, form.get("csrf_token"))
+    session_name = str(form.get("session_name") or "").strip()
+    item_key_s = str(form.get("item_key") or "").strip()
+    verdict = str(form.get("verdict") or "").strip()
+    notes = str(form.get("notes") or "")
+    issues = [str(v) for v in form.getlist("issues")]
+
+    if session_name not in cohort_review.list_eval_sessions():
+        raise HTTPException(status_code=400, detail="unknown_session")
+    if verdict not in ("good", "bad"):
+        raise HTTPException(status_code=400, detail="verdict_required")
+    if verdict == "bad" and not issues and not notes.strip():
+        raise HTTPException(status_code=400, detail="bad_requires_issue_or_note")
+
+    session_dir = cohort_review.SCRATCH_DIR / session_name
+    entry = cohort_review.save_review_entry(
+        session_dir,
+        item_key_s,
+        verdict=verdict,
+        issues=issues,
+        notes=notes,
+    )
+
+    items = cohort_review.load_cohort_items(session="all")
+    item = next((i for i in items if i["key"] == item_key_s), None)
+    if item is None:
+        # Fall back to minimal card from form session only.
+        items = cohort_review.load_cohort_items(session=session_name)
+        item = next((i for i in items if i["key"] == item_key_s), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail="item_not_found")
+    item["review"] = entry
+    return _render_partial(request, "cohort_review_card.html", _cohort_card_context(item, saved=True))
+
+
+@_protected.get("/cohort-review/export")
+async def cohort_review_export(session: str = Query("all")) -> Response:
+    from starlette.responses import PlainTextResponse
+
+    csv_body = cohort_review.export_reviews_csv(session=session)
+    filename = f"human_review_{session}.csv"
+    return PlainTextResponse(
+        csv_body,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 router = APIRouter()

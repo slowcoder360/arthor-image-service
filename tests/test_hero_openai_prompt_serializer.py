@@ -52,7 +52,7 @@ async def test_dental_compile_uses_openai_serializer():
     profile = await resolve_style_profile(hero_request_to_payload_v1(req))
     prompts = compile_hero_triad_prompts(req, profile)
     search = prompts[0].prompt
-    assert prompts[0].compiler_version == "3.2"
+    assert prompts[0].compiler_version == "3.3"
     assert "Create a photorealistic homepage hero background plate" in search
     assert "dental clinic" in search.lower()
     assert "Invariants:" in search
