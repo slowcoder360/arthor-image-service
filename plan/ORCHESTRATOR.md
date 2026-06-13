@@ -1,68 +1,83 @@
-# ORCHESTRATOR — arthor-image-service (Vertical prompts wave)
+# ORCHESTRATOR — arthor-image-service
 
-**You paste only the meta prompt at the bottom.**
-
-**Status (2026-06-12):** Hero H1–H6 + industry matrix + cohort tooling on **`main` @ latest**. Justin is operator-tuning vertical prompts in inspector. **arthor-ai consumer contract frozen** until this wave closes.
+**Paste the meta prompt at the bottom of the active wave.**
 
 ---
 
-## Slice queue
+## Wave index
 
-| ID | Status | HANDOFF | Done when |
-|----|--------|---------|-----------|
-| W21-H / H1–H6 | **DONE** | `HANDOFF-HERO-VISUAL-STRATEGY.md` | On `main` |
-| **V1** | **ACTIVE** | `HANDOFF-VERTICAL-PROMPTS-AND-USER-ASSETS.md` | Justin visual pass all cohort verticals |
-| V2 | OPEN | same HANDOFF § Future path | `POST /images/assets/analyze` + tests — **after V1** |
-| V3 | OPEN | `HANDOFF-HERO-NEXT-AGENT.md` Path 1 | Asset-pack non-hero serializer parity — **after V1** |
-| W21-H-C | BLOCKED | `HERO-CANDIDATES-CONSUMER.md` | arthor-ai repo — **after V1** |
+| Wave | HANDOFF | Owner | Status |
+|------|---------|-------|--------|
+| **Completion U1–U8** | `HANDOFF-IMAGE-SERVICE-COMPLETION.md` | Orchestrator + pods | **ACTIVE** |
+| Vertical prompts V1 | `HANDOFF-VERTICAL-PROMPTS-AND-USER-ASSETS.md` | **Justin only** (inspector) | Parallel — not orchestrator |
+| Hero consumer | `HERO-CANDIDATES-CONSUMER.md` | arthor-ai repo | Blocked until Justin |
+
+Shared language: `plan/CONTEXT.md`
+
+---
+
+## Completion slice queue (U1–U8)
+
+| ID | Depends | Branch suggestion |
+|----|---------|-------------------|
+| **U1** analyze API | — | `pod/u1-asset-analyze` |
+| **U2** treatment router | U1 | `pod/u2-treatment-router` |
+| **U3** enhance_headshot | U1, U2 | `pod/u3-enhance-headshot` |
+| **U4** pack non-hero parity | — | `pod/u4-pack-serializer` |
+| **U5** user refs in pack | U1, U4 | `pod/u5-pack-refs` |
+| **U6** logo placements | U1 | `pod/u6-logo-placements` |
+| **U7** illustrated register | U4 | `pod/u7-illustration` |
+| **U8** pack dev E2E ledger | U4 | `pod/u8-pack-e2e` |
+
+Dispatch **one slice per subagent**. Do not fan out U3/U5 before U1+U4 land.
 
 ---
 
 ## Operating rules
 
-- Work on **`main`** (or short-lived `pod/vertical-*` branches; merge to `main` when pytest green + Justin spot-check).
-- **Deterministic compile only** — no LLM for industry routing or upload classification in this wave.
-- Heroes: **OpenAI only** (ADR-0012). Do not change poll/generate JSON without Justin.
-- Every vertical change needs a **regression test** in `tests/test_hero_industry_prompts.py` (or extend it).
-- Justin is the quality oracle — inspector thumbs-up beats pytest alone.
-- Do not start arthor-ai or arthor-agent consumer work from this orchestrator.
+- Repo: `~/arthor-image-service`, branch from `main`
+- Composer 2.5 for subagents
+- Tests-first: failing test → implement → green → commit
+- No hero/generate poll JSON changes without Justin
+- No arthor-ai / arthor-agent code from this orchestrator
+- Justin does vertical prompt tuning separately — do not dispatch cohort eval unless Justin asks
 
 ---
 
-## Meta prompt (paste this)
+## Meta prompt — completion wave (paste this)
 
 ```
-You are the Tier-1 orchestrator for ~/arthor-image-service — vertical hero prompt tightening wave.
+You are the Tier-1 orchestrator for ~/arthor-image-service — product completion wave (slices U1–U8).
 
-Read FIRST (in order):
+Read FIRST:
 1. plan/ORCHESTRATOR.md
-2. plan/HANDOFF-VERTICAL-PROMPTS-AND-USER-ASSETS.md
+2. plan/HANDOFF-IMAGE-SERVICE-COMPLETION.md
 3. plan/CONTEXT.md
-4. app/style/hero_archetypes.py + tests/test_hero_industry_prompts.py
+4. plan/adr/0010-payload-contract-v1.md + plan/adr/0012-hero-openai-only-and-visual-strategy.md
 
-Branch: main (latest). Hero pipeline already merged.
+Branch: main. Justin is separately tuning vertical hero prompts — do NOT dispatch cohort eval or hero_archetypes edits unless he asks in this chat.
 
 Your job:
-1. Run pytest on hero test modules (listed in HANDOFF). Fix any red before edits.
-2. Work vertical-by-vertical with Justin as operator:
-   - dental (baseline approved — regressions only)
-   - legal, home_services, healthcare, outdoor_services (active tuning)
-3. For each vertical Justin flags in inspector or cohort eval:
-   - Fix backdrop/job scenes in hero_archetypes.py + scene archetypes in hero_visual_strategy.py if needed
-   - Adjust serializer only when compile layer insufficient
-   - Add/extend regression test asserting forbidden motifs appear as Invariants
-   - Re-run pytest; optional: scripts/hero_cohort_eval.py for that slug only
-4. Update agent-control/dev-launch-ledger.md with cohort SHA + date when a vertical passes Justin visual review.
-5. Report: per-vertical status table (pass/fail + failure_mode summary + commit SHA).
+1. Walk slices U1→U8 in dependency order. Start with U1 unless Justin names a specific slice.
+2. For each slice:
+   - Read the slice row in HANDOFF-IMAGE-SERVICE-COMPLETION.md
+   - Write failing pytest first (tests-first)
+   - Implement minimal diff; match existing HMAC + inspector patterns
+   - pytest green on slice scope; commit on pod branch or main per operating rules
+   - Update agent-control/slice-status.md (create if missing) with slice id, SHA, pass/fail
+3. Product defaults to document in U1/U2:
+   - Auto-treatment when analyze confidence high
+   - confirm_first_required only for low confidence / likeness / face-in-hero
+   - Image-service never owns chat UX — only analyze output fields
+4. After U4+U8: update agent-control/dev-launch-ledger.md with full asset-pack smoke (not hero-only).
 
-Out of scope (stop and ask Justin):
-- HeroCandidatesRequest / poll API shape changes
+Out of scope — stop and report:
 - arthor-ai consumer wire-up
-- User upload analyze API (V2)
-- Asset-pack non-hero slots (V3)
-- Merging unrelated repos
+- arthor-agent SMS / preview links
+- Vertical industry prompt matrix (Justin operator)
+- API contract breaks without Justin
 
-Model: Composer 2.5 for subagents. One vertical per subagent dispatch unless Justin says batch.
+Report after each slice: one line summary + SHA + test count. After U1 lands, pause for Justin only if analyze library choice (face detection) needs approval.
 
-Do not merge to main without Justin if you opened a pod branch; direct commits on main OK for small prompt fixes when tests green.
+Model: Composer 2.5 for subagents. One slice per subagent dispatch.
 ```
