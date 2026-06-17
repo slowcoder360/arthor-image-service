@@ -26,16 +26,17 @@ async def test_compile_dental_hero_job_trust_not_equipment():
     prompts = compile_hero_triad_prompts(req, profile)
     assert len(prompts) == 3
     search = prompts[0].prompt
-    assert prompts[0].compiler_version == "3.3"
+    assert prompts[0].compiler_version == "3.4"
     assert prompts[0].industry_label == "dental"
     assert prompts[0].hero_job == "trust"
-    assert prompts[0].scene_archetype == "shared_joy"
+    assert prompts[0].scene_archetype == "threshold_invitation"
     assert prompts[1].scene_archetype == "shared_joy"
     assert prompts[2].scene_archetype == "confident_smile"
     assert search.startswith("Create a photorealistic homepage hero background plate")
     assert "Subject:" in search
-    assert "candid shared joy" in search.lower()
-    assert "consultation" not in search.lower()
+    assert "welcoming threshold" in search.lower() or "doorway" in search.lower()
+    assert "candid shared joy" in prompts[1].prompt.lower()
+    assert "dental chair" not in search.lower() or "no operatory" in search.lower()
     assert "Scene archetype:" not in search
     assert "dental clinic" in search.lower()
     assert "Invariants:" in search

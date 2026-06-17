@@ -19,57 +19,18 @@ SceneArchetypeId = Literal[
 
 AuthenticityMode = Literal["stylized", "space_anchored", "likeness_anchored"]
 
-STRATEGY_VERSION = "1.2"
+STRATEGY_VERSION = "1.3"
 SCENE_CATALOG_VERSION = "1.2"
 
-_FAMILY_ICP_KEYS: tuple[str, ...] = (
-    "famil",
-    "parent",
-    "child",
-    "kid",
-    "pediatric",
-    "youth",
-)
-
-_TONE_DEFAULT_ARCHETYPE: dict[str, SceneArchetypeId] = {
-    "search": "confident_smile",
-    "story": "threshold_relief",
-    "offer": "confident_smile",
-}
-
-_FAMILY_DENTAL_TRIAD: dict[str, SceneArchetypeId] = {
-    "search": "shared_joy",
-    "story": "shared_joy",
-    "offer": "confident_smile",
-}
-
-# Cohort review 2026-06: avoid generic family/shared_joy at residential home for non-dental verticals.
-_INDUSTRY_SCENE_TRIAD: dict[str, dict[str, SceneArchetypeId]] = {
-    "legal": {
-        "search": "desk_side_guidance",
-        "story": "desk_side_guidance",
-        "offer": "confident_smile",
-    },
-    "home_services": {
-        "search": "desk_side_guidance",
-        "story": "desk_side_guidance",
-        "offer": "confident_smile",
-    },
-    "healthcare": {
-        "search": "desk_side_guidance",
-        "story": "desk_side_guidance",
-        "offer": "confident_smile",
-    },
-    "outdoor_services": {
-        "search": "confident_smile",
-        "story": "confident_smile",
-        "offer": "environment_warmth",
-    },
-    "general_services": {
-        "search": "desk_side_guidance",
-        "story": "desk_side_guidance",
-        "offer": "confident_smile",
-    },
+# Builder visual triad: variant_index 0|1|2 → distinct scene archetypes per industry.
+# tone_angle remains on ingress for analytics only — not scene selection.
+INDUSTRY_VISUAL_TRIAD: dict[str, tuple[SceneArchetypeId, SceneArchetypeId, SceneArchetypeId]] = {
+    "dental": ("threshold_invitation", "shared_joy", "confident_smile"),
+    "legal": ("desk_side_guidance", "threshold_invitation", "confident_smile"),
+    "home_services": ("threshold_invitation", "desk_side_guidance", "environment_warmth"),
+    "healthcare": ("threshold_invitation", "desk_side_guidance", "confident_smile"),
+    "outdoor_services": ("environment_warmth", "confident_smile", "threshold_relief"),
+    "general_services": ("desk_side_guidance", "threshold_invitation", "confident_smile"),
 }
 
 
@@ -205,11 +166,6 @@ INDUSTRY_SUBJECT_GUIDANCE: dict[str, str] = {
 }
 
 
-def _is_family_icp(icp_summary: str) -> bool:
-    low = icp_summary.lower()
-    return any(k in low for k in _FAMILY_ICP_KEYS)
-
-
 def resolve_authenticity_mode(request: HeroCandidatesRequest) -> AuthenticityMode:
     refs = request.brand_visual.customer_reference_assets
     if not refs:
@@ -224,31 +180,17 @@ def resolve_authenticity_mode(request: HeroCandidatesRequest) -> AuthenticityMod
 
 def resolve_scene_archetype(
     request: HeroCandidatesRequest,
-    variant: HeroVariantSlot,
+    variant_index: int,
 ) -> SceneArchetypeId:
-    """Lookup scene archetype from tone, industry, and ICP — deterministic, no LLM."""
-    tone = variant.tone_angle or "search"
+    """Lookup scene archetype from industry + variant_index — deterministic, no LLM."""
+    if variant_index not in (0, 1, 2):
+        raise ValueError("variant_index must be 0, 1, or 2")
     ctx = resolve_industry(request.business.industry)
-    family = _is_family_icp(request.business.icp_summary)
-
-    if ctx.label == "dental" and family:
-        return _FAMILY_DENTAL_TRIAD.get(tone, _TONE_DEFAULT_ARCHETYPE.get(tone, "confident_smile"))
-
-    industry_triad = _INDUSTRY_SCENE_TRIAD.get(ctx.label)
-    if industry_triad is not None:
-        return industry_triad.get(tone, _TONE_DEFAULT_ARCHETYPE.get(tone, "confident_smile"))
-
-    if tone == "offer":
-        return "confident_smile"
-    if tone == "search" and family:
-        return "shared_joy"
-    if tone == "story" and family:
-        return "shared_joy"
-    if tone == "search":
-        return "confident_smile"
-    if tone == "story":
-        return "desk_side_guidance"
-    return _TONE_DEFAULT_ARCHETYPE.get(tone, "confident_smile")
+    triad = INDUSTRY_VISUAL_TRIAD.get(
+        ctx.label,
+        INDUSTRY_VISUAL_TRIAD["general_services"],
+    )
+    return triad[variant_index]
 
 
 def industry_backdrop_modifier(industry_label: str) -> str:
@@ -313,7 +255,7 @@ def resolve_hero_visual_strategy(request: HeroCandidatesRequest) -> HeroVisualSt
     auth = resolve_authenticity_mode(request)
     variants: list[VariantVisualStrategy] = []
     for index, variant in enumerate(request.variants):
-        archetype = resolve_scene_archetype(request, variant)
+        archetype = resolve_scene_archetype(request, index)
         variants.append(
             VariantVisualStrategy(
                 variant_index=index,
@@ -340,6 +282,6 @@ def resolve_variant_visual_strategy(
     return VariantVisualStrategy(
         variant_index=index,
         tone_angle=variant.tone_angle,
-        scene_archetype=resolve_scene_archetype(request, variant),
+        scene_archetype=resolve_scene_archetype(request, index),
         authenticity_mode=resolve_authenticity_mode(request),
     )

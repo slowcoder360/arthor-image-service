@@ -26,7 +26,7 @@ async def test_home_services_prompt_excludes_couch_leisure():
     text = compile_hero_triad_prompts(req, profile)[0].prompt.lower()
     assert "technician" in text
     assert "couch" in text or "sofa" in text or "leisure" in text
-    assert resolve_scene_archetype(req, req.variants[1]) == "desk_side_guidance"
+    assert resolve_scene_archetype(req, 1) == "desk_side_guidance"
 
 
 @pytest.mark.asyncio
@@ -40,11 +40,11 @@ async def test_healthcare_prompt_excludes_gym_aesthetic():
 
 
 @pytest.mark.asyncio
-async def test_legal_story_uses_desk_not_threshold_family():
+async def test_legal_index_zero_uses_desk_not_threshold_family():
     req = _req_for_industry("personal injury law")
-    assert resolve_scene_archetype(req, req.variants[1]) == "desk_side_guidance"
+    assert resolve_scene_archetype(req, 0) == "desk_side_guidance"
     profile = await resolve_style_profile(hero_request_to_payload_v1(req))
-    text = compile_hero_triad_prompts(req, profile)[1].prompt.lower()
+    text = compile_hero_triad_prompts(req, profile)[0].prompt.lower()
     assert "desk" in text or "table" in text
     assert "family group" in text or "doorway" in text or "residential" in text
 
