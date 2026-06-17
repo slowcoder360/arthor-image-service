@@ -3,7 +3,7 @@
 | Slice | Branch | SHA | Tests | Status |
 |-------|--------|-----|-------|--------|
 | U9 visual triad | `pod/u9-visual-triad` | `b3364ed` | 25/25 hero slice | pass |
-| U10 taste corpus | `pod/u10-hero-taste-corpus` | pending | 73/73 hero suite | pass |
+| U10 taste corpus | `pod/u10-hero-taste-corpus` | `00441bd` | 73/73 hero suite | pass |
 
 **U9 wave pytest:** `pytest tests/test_hero_visual_triad.py tests/test_hero_prompt_compiler.py tests/test_hero_industry_prompts.py`
 
