@@ -1,0 +1,39 @@
+corpus_version: "1.0"
+industry_label: general_services
+variants:
+  - variant_index: 0
+    scene_archetype: desk_side_guidance
+    hero_job: trust
+    r2_key: "corpus/general_services/0.webp"
+    public_url: "https://cdn.example/arthor/corpus/general_services/0.webp"
+    style_profile_fragment:
+      lighting: "natural office window light"
+      color_grading: "professional neutral"
+      composition_rules: ["left safe zone clear"]
+    compiler_version: "3.4"
+    approved_at: "2026-06-16"
+    approved_by: "justin"
+  - variant_index: 1
+    scene_archetype: threshold_invitation
+    hero_job: experience
+    r2_key: "corpus/general_services/1.webp"
+    public_url: "https://cdn.example/arthor/corpus/general_services/1.webp"
+    style_profile_fragment:
+      lighting: "welcoming entry daylight"
+      color_grading: "approachable warm"
+      composition_rules: ["open gesture visible"]
+    compiler_version: "3.4"
+    approved_at: "2026-06-16"
+    approved_by: "justin"
+  - variant_index: 2
+    scene_archetype: confident_smile
+    hero_job: outcome
+    r2_key: "corpus/general_services/2.webp"
+    public_url: "https://cdn.example/arthor/corpus/general_services/2.webp"
+    style_profile_fragment:
+      lighting: "soft satisfied-client light"
+      color_grading: "confident natural"
+      composition_rules: ["outcome lower-right"]
+    compiler_version: "3.4"
+    approved_at: "2026-06-16"
+    approved_by: "justin"

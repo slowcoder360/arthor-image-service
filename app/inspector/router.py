@@ -28,6 +28,7 @@ from app.auth.sign import sign_outbound
 from app.inspector import cohort_review
 from app.inspector import cost as cost_rollups
 from app.inspector import hero_ab
+from app.inspector import taste_corpus
 from app.providers.image_model_costs import format_cost_table_markdown
 from app.inspector import queries
 from app.inspector.csrf import CSRF_COOKIE_NAME, issue_csrf_token, verify_csrf_token
@@ -885,6 +886,24 @@ async def inspector_soft_delete(
         "soft_deleted": True,
     }
     return _render_partial(request, "slot_prompt_modifier.html", ctx)
+
+
+@_protected.get("/taste-corpus")
+async def taste_corpus_page(request: Request) -> Response:
+    import os
+
+    rows = taste_corpus.taste_corpus_rows(corpus_version="1.0")
+    dev_hint = None
+    if os.environ.get("ENV", "development") != "production":
+        dev_hint = (
+            "Dev: import winners with "
+            "python scripts/import_cohort_to_corpus.py --cohort-csv scratch/hero-cohort-eval/cohort_results.csv"
+        )
+    return _render(
+        request,
+        "taste_corpus.html",
+        {"rows": rows, "dev_import_hint": dev_hint},
+    )
 
 
 @_protected.get("/cohort-review")

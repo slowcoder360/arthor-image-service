@@ -227,25 +227,6 @@ async def test_hero_get_pending_then_complete_with_three_urls(monkeypatch, tmp_p
     from httpx import ASGITransport, AsyncClient
 
     from app.auth.hmac import sign_body
-    import app.routes.hero_candidates as hero_routes
-
-    worker_started = asyncio.Event()
-
-    async def _stub_worker(services_arg, *, run_id, request, payload, style_profile):
-        worker_started.set()
-        await asyncio.sleep(0.05)
-        seed_uploaded_hero_assets(services_arg.pool.store, run_id, count=3)
-        row = services_arg.pool.store.agent_runs[run_id]
-        row["status"] = "ok"
-        row["finished_at"] = "now"
-        fake.calls.extend(
-            [
-                _FakeCall("generate_single", f"hero_candidate_{i}")
-                for i in range(3)
-            ]
-        )
-
-    monkeypatch.setattr(hero_routes, "run_hero_candidates_in_background", _stub_worker)
 
     payload = _build_hero_request(idem_key=f"hero-poll-{uuid.uuid4()}")
     raw = json.dumps(payload).encode()
@@ -262,24 +243,6 @@ async def test_hero_get_pending_then_complete_with_three_urls(monkeypatch, tmp_p
         assert post_resp.status_code == 202
         run_id = uuid.UUID(post_resp.json()["agent_run_id"])
 
-        await asyncio.wait_for(worker_started.wait(), timeout=2.0)
-
-        early = await client.get(
-            f"/images/hero-candidates/{run_id}",
-            headers={"X-Arthor-Signature": get_sig},
-        )
-        assert early.status_code == 200
-        assert early.json()["status"] in ("pending", "running", "complete")
-
-        for _ in range(40):
-            poll = await client.get(
-                f"/images/hero-candidates/{run_id}",
-                headers={"X-Arthor-Signature": get_sig},
-            )
-            if poll.json().get("status") == "complete":
-                break
-            await asyncio.sleep(0.05)
-
         final = await client.get(
             f"/images/hero-candidates/{run_id}",
             headers={"X-Arthor-Signature": get_sig},
@@ -290,4 +253,84 @@ async def test_hero_get_pending_then_complete_with_three_urls(monkeypatch, tmp_p
     assert len(final_body["urls"]) == 3
     indices = sorted(u["variant_index"] for u in final_body["urls"])
     assert indices == [0, 1, 2]
+    assert all(u.get("corpus_backed") for u in final_body["urls"])
+    assert all(u.get("scene_archetype") for u in final_body["urls"])
+    assert len(fake.calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_hero_corpus_missing_returns_400(monkeypatch, tmp_path):
+    app, _, _ = await _prepare_app(monkeypatch, tmp_path)
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.auth.hmac import sign_body
+
+    payload = _build_hero_request(idem_key=f"hero-no-corpus-{uuid.uuid4()}")
+    payload["corpus_version"] = "99.0"
+    raw = json.dumps(payload).encode()
+    sig = sign_body("k", raw)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        resp = await client.post(
+            "/images/hero-candidates/generate",
+            content=raw,
+            headers={"X-Arthor-Signature": sig},
+        )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "corpus_not_available_for_industry"
+
+
+@pytest.mark.asyncio
+async def test_hero_live_mode_still_runs_worker(monkeypatch, tmp_path):
+    pool = HeroFakePool()
+    app, fake, _ = await _prepare_app(monkeypatch, tmp_path, pool=pool)
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.auth.hmac import sign_body
+    import app.routes.hero_candidates as hero_routes
+
+    worker_started = asyncio.Event()
+
+    async def _stub_worker(services_arg, *, run_id, request, payload, style_profile):
+        worker_started.set()
+        await asyncio.sleep(0.05)
+        seed_uploaded_hero_assets(services_arg.pool.store, run_id, count=3)
+        row = services_arg.pool.store.agent_runs[run_id]
+        row["status"] = "ok"
+        row["finished_at"] = "now"
+        fake.calls.extend(
+            [_FakeCall("generate_single", f"hero_candidate_{i}") for i in range(3)]
+        )
+
+    monkeypatch.setattr(hero_routes, "run_hero_candidates_in_background", _stub_worker)
+
+    payload = _build_hero_request(idem_key=f"hero-live-{uuid.uuid4()}")
+    payload["generation_mode"] = "live"
+    raw = json.dumps(payload).encode()
+    sig = sign_body("k", raw)
+    get_sig = sign_body("k", b"")
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        post_resp = await client.post(
+            "/images/hero-candidates/generate",
+            content=raw,
+            headers={"X-Arthor-Signature": sig},
+        )
+        assert post_resp.status_code == 202
+        run_id = uuid.UUID(post_resp.json()["agent_run_id"])
+        await asyncio.wait_for(worker_started.wait(), timeout=2.0)
+        for _ in range(40):
+            poll = await client.get(
+                f"/images/hero-candidates/{run_id}",
+                headers={"X-Arthor-Signature": get_sig},
+            )
+            if poll.json().get("status") == "complete":
+                break
+            await asyncio.sleep(0.05)
+
+    assert poll.json()["status"] == "complete"
     assert len(fake.calls) == 3

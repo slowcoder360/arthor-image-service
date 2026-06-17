@@ -150,6 +150,7 @@ async def test_poll_surfaces_failure_mode_on_urls(monkeypatch, tmp_path):
     monkeypatch.setattr(hero_routes, "run_hero_candidates_in_background", _stub_worker)
 
     payload = _build_hero_request(idem_key=f"hero-qa-{uuid.uuid4()}")
+    payload["generation_mode"] = "live"
     raw = json.dumps(payload).encode()
     sig = sign_body("k", raw)
     get_sig = sign_body("k", b"")

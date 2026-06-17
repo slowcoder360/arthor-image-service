@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Hero taste corpus{% endblock %}
+{% block content %}
+<h1>Hero taste corpus</h1>
+<p>Curated builder hero plates — corpus mode serves these without OpenAI.</p>
+
+<table class="inspector-table">
+  <thead>
+    <tr>
+      <th>Industry</th>
+      <th>Coverage</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.industry_label }}</td>
+      <td>{{ row.coverage }}</td>
+      <td>{% if row.complete %}complete{% else %}TODO{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% for row in rows if row.variants %}
+<section class="corpus-grid-section">
+  <h2>{{ row.industry_label }}</h2>
+  <div class="hero-corpus-grid">
+    {% for v in row.variants %}
+    <figure>
+      <img src="{{ v.url }}" alt="variant {{ v.variant_index }}" class="hero-thumb" loading="lazy" />
+      <figcaption>{{ v.variant_index }} — {{ v.scene_archetype }}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+{% if dev_import_hint %}
+<p class="muted"><em>{{ dev_import_hint }}</em></p>
+{% endif %}
+{% endblock %}
