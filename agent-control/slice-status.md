@@ -2,15 +2,13 @@
 
 | Slice | Branch | SHA | Tests | Status |
 |-------|--------|-----|-------|--------|
-| U9 visual triad | `pod/u9-visual-triad` | `b3364ed` | 25/25 hero slice | pass |
-| U10 taste corpus | `pod/u10-hero-taste-corpus` | `00441bd` | 73/73 hero suite | pass |
+| U9 visual triad | `main` (merged via U1–U8 wave) | on `main` | hero triad suite | **landed on main** |
+| U10 taste corpus | `pod/u10-hero-taste-corpus` | ``03ee829` (03ee8290b5c55180a3c7acb7a9ed5ef6fc379cf9)` | 93/93 hero+corpus | **ready for Justin merge** (LB-M0) |
 
-**U9 wave pytest:** `pytest tests/test_hero_visual_triad.py tests/test_hero_prompt_compiler.py tests/test_hero_industry_prompts.py`
+**LB-M0 pytest:** `pytest tests/test_hero*.py tests/test_import_cohort_to_corpus.py`
 
-**U10 wave pytest:** `pytest tests/test_hero*.py tests/test_import_cohort_to_corpus.py`
+**Corpus on pod:** 30 v2 slug YAMLs (`data/hero_taste_corpus/v2/`), 6 v1 coarse labels; `generation_mode: "corpus"`, `corpus_version: "2.0"`.
 
-**Corpus seeded:** dental, general_services (fallback). **Gaps:** legal, home_services, healthcare, outdoor_services.
+**Blocks:** arthor-ai live hero triad (LB-E3) until Justin merges pod → main and deploys image-service with corpus data.
 
-**Integration HEAD:** `pod/u10-hero-taste-corpus` (includes U9)
-
-Justin: visual pass on dental corpus before arthor-ai default switch.
+Justin: merge `pod/u10-hero-taste-corpus` to `main`, then deploy before arthor-ai default switch.
