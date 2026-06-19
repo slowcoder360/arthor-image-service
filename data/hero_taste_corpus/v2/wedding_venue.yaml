@@ -1,0 +1,40 @@
+corpus_version: '2.0'
+slug: wedding_venue
+industry_label: general_services
+match_keys:
+- wedding venue
+- wedding_venue
+variants:
+- variant_index: 0
+  scene_archetype: desk_side_guidance
+  hero_job: trust
+  r2_key: hero-candidates/51813dce-b8df-49a6-8e1a-e2d0ea51dc67/0.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/51813dce-b8df-49a6-8e1a-e2d0ea51dc67/0.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-19'
+  approved_by: justin
+- variant_index: 1
+  scene_archetype: threshold_invitation
+  hero_job: experience
+  r2_key: hero-candidates/51813dce-b8df-49a6-8e1a-e2d0ea51dc67/1.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/51813dce-b8df-49a6-8e1a-e2d0ea51dc67/1.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-19'
+  approved_by: justin
+- variant_index: 2
+  scene_archetype: confident_smile
+  hero_job: outcome
+  r2_key: hero-candidates/51813dce-b8df-49a6-8e1a-e2d0ea51dc67/2.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/51813dce-b8df-49a6-8e1a-e2d0ea51dc67/2.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-19'
+  approved_by: justin

@@ -1,0 +1,40 @@
+corpus_version: '2.0'
+slug: property_management
+industry_label: general_services
+match_keys:
+- property management
+- property_management
+variants:
+- variant_index: 0
+  scene_archetype: desk_side_guidance
+  hero_job: trust
+  r2_key: hero-candidates/5a88f8f4-e802-4e47-a1a9-40a404266f57/0.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/5a88f8f4-e802-4e47-a1a9-40a404266f57/0.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin
+- variant_index: 1
+  scene_archetype: threshold_invitation
+  hero_job: experience
+  r2_key: hero-candidates/5a88f8f4-e802-4e47-a1a9-40a404266f57/1.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/5a88f8f4-e802-4e47-a1a9-40a404266f57/1.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin
+- variant_index: 2
+  scene_archetype: confident_smile
+  hero_job: outcome
+  r2_key: hero-candidates/5a88f8f4-e802-4e47-a1a9-40a404266f57/2.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/5a88f8f4-e802-4e47-a1a9-40a404266f57/2.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin

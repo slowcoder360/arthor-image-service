@@ -1,11 +1,16 @@
-corpus_version: '1.0'
-industry_label: dental
+corpus_version: '2.0'
+slug: med_spa
+industry_label: healthcare
+match_keys:
+- medical spa
+- med spa
+- med_spa
 variants:
 - variant_index: 0
   scene_archetype: threshold_invitation
   hero_job: trust
-  r2_key: corpus/dental/0.webp
-  public_url: https://cdn.example/dental/0.webp
+  r2_key: hero-candidates/30be1854-a3f0-46bd-ac8c-c65835b33a19/0.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/30be1854-a3f0-46bd-ac8c-c65835b33a19/0.png
   style_profile_fragment:
     lighting: soft natural window light
     color_grading: warm professional
@@ -13,10 +18,10 @@ variants:
   approved_at: '2026-06-18'
   approved_by: justin
 - variant_index: 1
-  scene_archetype: shared_joy
+  scene_archetype: desk_side_guidance
   hero_job: experience
-  r2_key: corpus/dental/1.webp
-  public_url: https://cdn.example/dental/1.webp
+  r2_key: hero-candidates/30be1854-a3f0-46bd-ac8c-c65835b33a19/1.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/30be1854-a3f0-46bd-ac8c-c65835b33a19/1.png
   style_profile_fragment:
     lighting: soft natural window light
     color_grading: warm professional
@@ -26,8 +31,8 @@ variants:
 - variant_index: 2
   scene_archetype: confident_smile
   hero_job: outcome
-  r2_key: corpus/dental/2.webp
-  public_url: https://cdn.example/dental/2.webp
+  r2_key: hero-candidates/30be1854-a3f0-46bd-ac8c-c65835b33a19/2.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/30be1854-a3f0-46bd-ac8c-c65835b33a19/2.png
   style_profile_fragment:
     lighting: soft natural window light
     color_grading: warm professional

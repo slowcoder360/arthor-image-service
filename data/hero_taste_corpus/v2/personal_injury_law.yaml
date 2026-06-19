@@ -1,0 +1,40 @@
+corpus_version: '2.0'
+slug: personal_injury_law
+industry_label: legal
+match_keys:
+- personal injury law
+- personal_injury_law
+variants:
+- variant_index: 0
+  scene_archetype: desk_side_guidance
+  hero_job: trust
+  r2_key: hero-candidates/fcb57f92-2931-419f-a48d-764a798be3fd/0.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/fcb57f92-2931-419f-a48d-764a798be3fd/0.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin
+- variant_index: 1
+  scene_archetype: threshold_invitation
+  hero_job: experience
+  r2_key: hero-candidates/fcb57f92-2931-419f-a48d-764a798be3fd/1.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/fcb57f92-2931-419f-a48d-764a798be3fd/1.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin
+- variant_index: 2
+  scene_archetype: confident_smile
+  hero_job: outcome
+  r2_key: hero-candidates/fcb57f92-2931-419f-a48d-764a798be3fd/2.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/fcb57f92-2931-419f-a48d-764a798be3fd/2.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin

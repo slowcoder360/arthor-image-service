@@ -892,7 +892,9 @@ async def inspector_soft_delete(
 async def taste_corpus_page(request: Request) -> Response:
     import os
 
-    rows = taste_corpus.taste_corpus_rows(corpus_version="1.0")
+    services = getattr(request.app.state, "services", None)
+    settings = getattr(services, "settings", None) if services else None
+    rows = taste_corpus.taste_corpus_rows(corpus_version="1.0", settings=settings)
     dev_hint = None
     if os.environ.get("ENV", "development") != "production":
         dev_hint = (

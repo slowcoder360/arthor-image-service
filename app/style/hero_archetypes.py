@@ -38,6 +38,8 @@ TONE_COMPOSITION: dict[str, str] = {
 TONE_PEOPLE: dict[str, str] = {
     "search": (
         "candid human trust moment — provider and customer in natural consultation or warm interaction; "
+        "for on-site or field service: customer or homeowner face visible toward camera, provider back-three-quarter "
+        "or profile obscured (likeness liability); desk consult (legal, dental, CPA, insurance): both faces visible; "
         "soft three-quarter or profile acceptable; not stock grin at camera; not empty room"
     ),
     "story": (
@@ -56,6 +58,7 @@ GLOBAL_HERO_AVOID: tuple[str, ...] = (
     "blank left half or empty void reserved for copy",
     "sterile copy-zone wall with no scene continuity",
     "stock smile staring at camera",
+    "field-service provider facing camera when no team likeness refs",
     "website mockups",
     "rendered words or signage text",
 )
@@ -100,8 +103,8 @@ INDUSTRY_CONTEXTS: tuple[IndustryContext, ...] = (
         label="dental",
         backdrop="bright modern dental clinic — reception or consult area; no operatory or chair in frame",
         trust="dentist and patient in calm face-to-face consultation; conversation and trust, equipment absent or fully out of frame",
-        outcome="confident natural smile, parent and child at ease after visit, genuine relief — never posed with dental chair",
-        experience="relaxed patient in welcoming setting, soft natural light — human warmth, not clinical equipment",
+        outcome="confident natural smile, family at ease after visit with mixed ages and genders — genuine relief — never posed with dental chair",
+        experience="relaxed patients of varied ages and genders in welcoming setting, soft natural light — human warmth, not clinical equipment",
         authority="dentist explaining treatment plan while patient listens; whiteboard or tablet ok, never operatory hero shot",
         feel="calm, hygienic, family-friendly dentistry",
         avoid_extra=(
@@ -113,6 +116,8 @@ INDUSTRY_CONTEXTS: tuple[IndustryContext, ...] = (
             "residential home interior",
             "living room or kitchen backdrop",
             "domestic furniture masquerading as clinic",
+            "all-female cast only",
+            "single-gender provider and patient pairing only",
         ),
     ),
     IndustryContext(
@@ -136,22 +141,40 @@ INDUSTRY_CONTEXTS: tuple[IndustryContext, ...] = (
         ),
     ),
     IndustryContext(
-        match_keys=("hvac", "plumb", "electric", "contractor", "roofing"),
+        match_keys=("hvac", "plumb", "electric", "roofing", "garage door"),
         label="home_services",
         backdrop=(
-            "on-site home service visit — technician with homeowner at entryway, exterior, or utility area; "
-            "service interaction visible, not passive domestic leisure"
+            "on-site home service work area — roofline or garage facade visible, utility area, driveway concrete, "
+            "or exterior siding; active service visit, not passive domestic leisure"
         ),
-        trust="technician in uniform or workwear respectfully consulting homeowner at the door or beside equipment area",
-        outcome="homeowner relieved after completed service — visible comfort outcome with technician or service context nearby",
-        experience="technician and homeowner in active conversation during a service visit; natural daylight at home exterior or entry",
-        authority="skilled tradesperson explaining work to attentive homeowner on-site — tools secondary, people primary",
+        trust=(
+            "homeowner approaching from outside with face visible toward camera; technician at the work site with "
+            "back, three-quarter rear, or profile toward equipment — not welcoming homeowner into their own home, "
+            "not provider facing camera at the threshold"
+        ),
+        outcome=(
+            "homeowner relieved after completed service outdoors or at the work site — comfort outcome visible; "
+            "technician nearby with back or profile, homeowner face toward camera"
+        ),
+        experience=(
+            "technician and homeowner in active on-site conversation beside equipment, at driveway, roof edge, "
+            "garage facade, or utility area — standing, not seated at patio or dining table; provider back or "
+            "profile, homeowner face visible"
+        ),
+        authority=(
+            "skilled tradesperson explaining work to attentive homeowner on-site — provider back-three-quarter or "
+            "profile at work area, homeowner face toward camera; tools secondary, people primary"
+        ),
         feel="reliable, local, no-nonsense expertise",
         avoid_extra=(
             "family on couch or sofa with no service interaction",
             "living room leisure scene",
-            "family walking through front door without technician",
+            "technician inside doorway welcoming homeowner who approaches from outside",
+            "provider facing camera at residential threshold",
             "kitchen table lifestyle",
+            "patio dining table scene",
+            "half indoor half outdoor patio seating",
+            "seated table consultation on a patio or deck",
             "air conditioner or roof as hero subject",
             "technician van wrap mockup",
             "tools or equipment as focal point",
@@ -162,15 +185,32 @@ INDUSTRY_CONTEXTS: tuple[IndustryContext, ...] = (
         match_keys=("health", "medical", "clinic", "therapy", "chiro", "physical therapy"),
         label="healthcare",
         backdrop="welcoming clinic or therapy office — clean consult room, not gym or residential interior",
-        trust="provider and patient in reassuring consultation; provider in professional clinical attire",
-        outcome="patient at ease after consult — progress or relief moment in clinic setting",
-        experience="calm clinic consult with provider and patient; soft natural light; professional dress, not athletic wear",
-        authority="provider reviewing plan with patient at desk or table — clinical office cues in background",
+        trust=(
+            "provider and patient in reassuring consultation — exactly one person in scrubs, white coat, or clinical "
+            "uniform; patient in everyday street clothes; both faces visible at desk"
+        ),
+        outcome=(
+            "patient at ease after consult in street clothes — provider in clinical attire; progress or relief "
+            "moment in clinic setting"
+        ),
+        experience=(
+            "calm clinic consult with provider in scrubs or white coat and patient in casual street clothes; "
+            "soft natural light — never both subjects in medical attire"
+        ),
+        authority=(
+            "provider in clinical attire reviewing plan with patient in street clothes at desk or table — "
+            "clinical office cues in background"
+        ),
         feel="reassuring, competent, patient-centered",
         avoid_extra=(
+            "both subjects in scrubs or medical attire",
+            "patient in scrubs or clinical uniform",
+            "hallucinated symmetric hospital hallways",
             "gym bags or athletic wear",
             "fitness studio or gym aesthetic",
             "polo shirt casual gym look",
+            "business casual attire on provider",
+            "zip-up jacket or street clothes on provider instead of scrubs",
             "empty therapy couch or exam table as hero",
             "explicit medical procedures",
             "clinical hardware as focal point",
@@ -179,7 +219,19 @@ INDUSTRY_CONTEXTS: tuple[IndustryContext, ...] = (
         ),
     ),
     IndustryContext(
-        match_keys=("landscap", "lawn", "garden", "mow", "arbor", "tree care", "yard"),
+        match_keys=(
+            "landscap",
+            "lawn",
+            "garden",
+            "mow",
+            "arbor",
+            "tree care",
+            "tree removal",
+            "tree service",
+            "yard",
+            "fence",
+            "fencing",
+        ),
         label="outdoor_services",
         backdrop="outdoor residential or commercial property — maintained lawn, garden, or yard in natural daylight",
         trust="landscaping professional or crew consulting homeowner in the yard; visible green space and work context",

@@ -167,6 +167,8 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
     }
     if use_corpus:
         metadata_patch["corpus_industry_label"] = corpus.industry_label if corpus else None
+        if corpus is not None and corpus.slug:
+            metadata_patch["corpus_slug"] = corpus.slug
     else:
         metadata_patch["hero_provider_prompts"] = [p.to_dict() for p in compiled_prompts]
         metadata_patch["hero_prompt_compiler_version"] = (

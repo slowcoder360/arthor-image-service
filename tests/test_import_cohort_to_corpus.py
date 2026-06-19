@@ -70,3 +70,56 @@ def test_import_from_cohort_csv_writes_yaml(tmp_path: Path, monkeypatch) -> None
     data = yaml.safe_load(paths[0].read_text(encoding="utf-8"))
     assert data["industry_label"] == "dental"
     assert len(data["variants"]) == 3
+
+
+def test_import_v2_slug_yaml(tmp_path: Path, monkeypatch) -> None:
+    from app.style import hero_taste_corpus as corpus_mod
+
+    monkeypatch.setattr(corpus_mod, "CORPUS_DATA_ROOT", tmp_path / "hero_taste_corpus")
+
+    cohort = tmp_path / "cohort_results.csv"
+    with cohort.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "slug",
+                "industry",
+                "industry_label",
+                "variant_index",
+                "tone_angle",
+                "scene_archetype",
+                "url",
+                "run_id",
+            ],
+        )
+        writer.writeheader()
+        for idx in range(3):
+            writer.writerow(
+                {
+                    "slug": "hvac",
+                    "industry": "hvac repair",
+                    "industry_label": "home_services",
+                    "variant_index": str(idx),
+                    "tone_angle": ["search", "story", "offer"][idx],
+                    "scene_archetype": ["threshold_invitation", "desk_side_guidance", "environment_warmth"][idx],
+                    "url": f"https://cdn.example/r2.dev/hero-candidates/run/{idx}.png",
+                    "run_id": "550e8400-e29b-41d4-a716-446655440000",
+                }
+            )
+
+    from scripts.import_cohort_to_corpus import import_v2_slugs_from_cohort_csv
+
+    paths = import_v2_slugs_from_cohort_csv(
+        cohort,
+        slug=None,
+        reviews_csv=None,
+        corpus_version="2.0",
+        approved_by="justin",
+        dry_run=False,
+    )
+    assert len(paths) == 1
+    data = yaml.safe_load(paths[0].read_text(encoding="utf-8"))
+    assert data["slug"] == "hvac"
+    assert data["match_keys"][0] == "hvac repair"
+    assert len(data["variants"]) == 3
+    assert data["variants"][0]["r2_key"] == "hero-candidates/run/0.png"

@@ -149,7 +149,7 @@ class HeroCandidatesRequest(BaseModel):
     hero_viewport: HeroViewport = "desktop"
     source_desktop_run_id: UUID4 | None = None
     generation_mode: HeroGenerationMode = "corpus"
-    corpus_version: str = "1.0"
+    corpus_version: str = "2.0"
     corpus_fallback: CorpusFallback | None = None
 
     @model_validator(mode="after")

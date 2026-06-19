@@ -1,0 +1,39 @@
+corpus_version: '1.0'
+industry_label: outdoor_services
+variants:
+- variant_index: 0
+  scene_archetype: environment_warmth
+  hero_job: trust
+  r2_key: hero-candidates/0388c830-4941-4772-8635-aa79f9b23800/0.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/0388c830-4941-4772-8635-aa79f9b23800/0.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '3.4'
+  approved_at: '2026-06-18'
+  approved_by: justin
+  source_note: batch 20260617T202916Z human_review good
+- variant_index: 1
+  scene_archetype: confident_smile
+  hero_job: experience
+  r2_key: hero-candidates/0388c830-4941-4772-8635-aa79f9b23800/1.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/0388c830-4941-4772-8635-aa79f9b23800/1.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '3.4'
+  approved_at: '2026-06-18'
+  approved_by: justin
+  source_note: batch 20260617T202916Z human_review good
+- variant_index: 2
+  scene_archetype: threshold_relief
+  hero_job: outcome
+  r2_key: hero-candidates/0388c830-4941-4772-8635-aa79f9b23800/2.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/0388c830-4941-4772-8635-aa79f9b23800/2.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '3.4'
+  approved_at: '2026-06-18'
+  approved_by: justin
+  source_note: batch 20260617T202916Z human_review good

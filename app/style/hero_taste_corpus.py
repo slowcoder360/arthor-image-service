@@ -40,6 +40,8 @@ class CorpusTriad:
     corpus_version: str
     industry_label: str
     variants: tuple[CorpusVariantEntry, CorpusVariantEntry, CorpusVariantEntry]
+    slug: str | None = None
+    match_keys: tuple[str, ...] = ()
 
 
 def _parse_variant(raw: dict[str, Any]) -> CorpusVariantEntry:
@@ -53,7 +55,7 @@ def _parse_variant(raw: dict[str, Any]) -> CorpusVariantEntry:
         r2_key=str(raw["r2_key"]),
         public_url=str(raw["public_url"]) if raw.get("public_url") else None,
         style_profile_fragment=fragment,
-        compiler_version=str(raw.get("compiler_version") or "3.4"),
+        compiler_version=str(raw.get("compiler_version") or "4.1"),
         approved_at=str(raw.get("approved_at") or ""),
         approved_by=str(raw.get("approved_by") or ""),
     )
@@ -70,14 +72,21 @@ def _triad_from_dict(data: dict[str, Any]) -> CorpusTriad | None:
     indices = sorted(v.variant_index for v in variants)
     if indices != [0, 1, 2]:
         return None
+    match_keys_raw = data.get("match_keys") or []
+    if isinstance(match_keys_raw, str):
+        match_keys_raw = [match_keys_raw]
+    match_keys = tuple(str(k).strip().lower() for k in match_keys_raw if str(k).strip())
+    slug = str(data["slug"]).strip() if data.get("slug") else None
     return CorpusTriad(
         corpus_version=str(data.get("corpus_version") or "1.0"),
-        industry_label=str(data.get("industry_label") or ""),
+        industry_label=str(data.get("industry_label") or slug or ""),
+        slug=slug,
+        match_keys=match_keys,
         variants=variants,  # type: ignore[return-value]
     )
 
 
-@lru_cache(maxsize=32)
+@lru_cache(maxsize=64)
 def _load_corpus_file(industry_label: str, corpus_version: str) -> CorpusTriad | None:
     path = CORPUS_DATA_ROOT / f"v{corpus_version.split('.')[0]}" / f"{industry_label}.yaml"
     if not path.is_file():
@@ -89,13 +98,65 @@ def _load_corpus_file(industry_label: str, corpus_version: str) -> CorpusTriad |
     return _triad_from_dict(data)
 
 
-def resolve_taste_corpus(industry: str, *, corpus_version: str = "1.0") -> CorpusTriad | None:
-    """Resolve corpus triad for industry; fallback general_services then None."""
+@lru_cache(maxsize=1)
+def _v2_slug_index() -> tuple[tuple[tuple[str, ...], CorpusTriad], ...]:
+    version_dir = CORPUS_DATA_ROOT / "v2"
+    if not version_dir.is_dir():
+        return ()
+    entries: list[tuple[tuple[str, ...], CorpusTriad]] = []
+    for path in sorted(version_dir.glob("*.yaml")):
+        with path.open(encoding="utf-8") as handle:
+            data = yaml.safe_load(handle)
+        if not isinstance(data, dict):
+            continue
+        triad = _triad_from_dict(data)
+        if triad is None:
+            continue
+        keys = triad.match_keys or (triad.slug or path.stem, triad.industry_label)
+        entries.append((keys, triad))
+    return tuple(entries)
+
+
+def _resolve_v2_by_match_keys(industry: str) -> CorpusTriad | None:
+    low = industry.lower()
+    best: tuple[int, CorpusTriad] | None = None
+    for keys, triad in _v2_slug_index():
+        for key in keys:
+            k = key.lower()
+            if k and k in low:
+                if best is None or len(k) > best[0]:
+                    best = (len(k), triad)
+    return best[1] if best else None
+
+
+def resolve_taste_corpus(industry: str, *, corpus_version: str = "2.0") -> CorpusTriad | None:
+    """Resolve corpus triad — v2 slug match_keys (longest win), then v1 coarse fallback."""
+    major = corpus_version.split(".")[0]
+    if major == "2":
+        triad = _resolve_v2_by_match_keys(industry)
+        if triad is not None:
+            return triad
+        ctx = resolve_industry(industry)
+        triad = _load_corpus_file(ctx.label, "1.0")
+        if triad is None and ctx.label != "general_services":
+            triad = _load_corpus_file("general_services", "1.0")
+        return triad
+
     ctx = resolve_industry(industry)
     triad = _load_corpus_file(ctx.label, corpus_version)
     if triad is None and ctx.label != "general_services":
         triad = _load_corpus_file("general_services", corpus_version)
     return triad
+
+
+def load_corpus_triad(industry_label: str, *, corpus_version: str = "1.0") -> CorpusTriad | None:
+    """Load one v1 industry corpus file — no fallback (inspector / admin)."""
+    return _load_corpus_file(industry_label, corpus_version)
+
+
+def load_corpus_slug(slug: str, *, corpus_version: str = "2.0") -> CorpusTriad | None:
+    """Load one v2 slug corpus file — no fallback."""
+    return _load_corpus_file(slug, corpus_version)
 
 
 def list_corpus_industries(*, corpus_version: str = "1.0") -> list[str]:
@@ -111,7 +172,8 @@ def corpus_coverage(*, corpus_version: str = "1.0") -> dict[str, list[int]]:
         triad = _load_corpus_file(label, corpus_version)
         if triad is None:
             continue
-        out[label] = sorted(v.variant_index for v in triad.variants)
+        key = triad.slug or triad.industry_label or label
+        out[key] = sorted(v.variant_index for v in triad.variants)
     return out
 
 
@@ -154,6 +216,8 @@ async def fulfill_corpus_hero_run(
             "corpus_industry_label": corpus.industry_label,
             "hero_job": entry.hero_job,
         }
+        if corpus.slug:
+            pending_meta["corpus_slug"] = corpus.slug
         asset_id = await insert_pending_asset(
             pool,
             agent_run_id=run_id,
@@ -173,3 +237,4 @@ async def fulfill_corpus_hero_run(
 
 def clear_corpus_cache() -> None:
     _load_corpus_file.cache_clear()
+    _v2_slug_index.cache_clear()
