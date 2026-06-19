@@ -35,6 +35,7 @@ from app.style.prompt_improver import finalize_hero_triad_prompts
 from app.style.resolver import resolve_style_profile, style_profile_to_metadata
 from app.style.hero_visual_strategy import resolve_hero_visual_strategy
 from app.style.hero_reference_plan import build_hero_reference_plan
+from app.style.hero_taste_corpus import fulfill_corpus_hero_run, resolve_taste_corpus
 from app.style.profile import StyleProfile
 
 router = APIRouter()
@@ -80,6 +81,19 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
     pool = getattr(services, "pool", None)
     if pool is None:
         return JSONResponse(status_code=503, content={"detail": "database_unavailable"})
+
+    use_corpus = hero_req.generation_mode == "corpus"
+    corpus = None
+    if use_corpus:
+        corpus = resolve_taste_corpus(hero_req.business.industry, corpus_version=hero_req.corpus_version)
+        if corpus is None:
+            if hero_req.corpus_fallback == "live":
+                use_corpus = False
+            else:
+                return JSONResponse(
+                    status_code=400,
+                    content={"detail": "corpus_not_available_for_industry"},
+                )
 
     maybe_existing = await lookup_idempotency_key(pool, hero_req.idempotency_key)
     if maybe_existing is not None:
@@ -131,22 +145,35 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
     style_profile = await resolve_style_profile(payload)
     visual_strategy = resolve_hero_visual_strategy(hero_req)
     reference_plan = build_hero_reference_plan(hero_req)
-    compiled_prompts = await finalize_hero_triad_prompts(
-        services,
-        hero_req,
-        style_profile,
-        desktop_seed_edit=hero_req.source_desktop_run_id is not None,
-    )
-    improver_stats = getattr(services, "_last_hero_improver_stats", None)
+    compiled_prompts: list[Any] = []
+    improver_stats = None
+    if not use_corpus:
+        compiled_prompts = await finalize_hero_triad_prompts(
+            services,
+            hero_req,
+            style_profile,
+            desktop_seed_edit=hero_req.source_desktop_run_id is not None,
+        )
+        improver_stats = getattr(services, "_last_hero_improver_stats", None)
+    effective_mode = "corpus" if use_corpus else "live"
     metadata_patch: dict[str, Any] = {
         "style_profile": style_profile_to_metadata(style_profile),
         "hero_visual_strategy": visual_strategy.to_dict(),
-        "hero_provider_prompts": [p.to_dict() for p in compiled_prompts],
-        "hero_prompt_compiler_version": compiled_prompts[0].compiler_version if compiled_prompts else None,
+        "generation_mode": effective_mode,
+        "corpus_version": hero_req.corpus_version if use_corpus else None,
         "hero_viewport": hero_req.hero_viewport,
         "hero_copy_overlay": build_hero_copy_overlay_metadata(hero_req),
         "payload_version": hero_req.payload_version,
     }
+    if use_corpus:
+        metadata_patch["corpus_industry_label"] = corpus.industry_label if corpus else None
+        if corpus is not None and corpus.slug:
+            metadata_patch["corpus_slug"] = corpus.slug
+    else:
+        metadata_patch["hero_provider_prompts"] = [p.to_dict() for p in compiled_prompts]
+        metadata_patch["hero_prompt_compiler_version"] = (
+            compiled_prompts[0].compiler_version if compiled_prompts else None
+        )
     if hero_req.source_desktop_run_id is not None:
         metadata_patch["source_desktop_run_id"] = str(hero_req.source_desktop_run_id)
         metadata_patch["desktop_seed_edit"] = True
@@ -161,15 +188,26 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
         metadata_patch=metadata_patch,
     )
 
-    asyncio.create_task(
-        run_hero_candidates_in_background(
-            services,
+    if use_corpus and corpus is not None:
+        await fulfill_corpus_hero_run(
+            pool,
             run_id=run_id,
             request=hero_req,
-            payload=payload,
             style_profile=style_profile,
+            corpus=corpus,
+            settings=services.settings,
         )
-    )
+        await update_run_status(pool, run_id, status="ok", finished=True)
+    else:
+        asyncio.create_task(
+            run_hero_candidates_in_background(
+                services,
+                run_id=run_id,
+                request=hero_req,
+                payload=payload,
+                style_profile=style_profile,
+            )
+        )
 
     return JSONResponse(
         status_code=202,
@@ -177,7 +215,13 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
     )
 
 
-async def _build_poll_response(pool: Any, run_id: uuid.UUID, settings: Any) -> dict[str, Any]:
+async def _build_poll_response(
+    pool: Any,
+    run_id: uuid.UUID,
+    settings: Any,
+    *,
+    picked_variant_index: int | None = None,
+) -> dict[str, Any]:
     async with pool.acquire() as conn:
         run_row = await conn.fetchrow(
             "SELECT status, finished_at, metadata FROM agent_runs WHERE id = $1",
@@ -226,6 +270,12 @@ async def _build_poll_response(pool: Any, run_id: uuid.UUID, settings: Any) -> d
             entry["subhead"] = md["subhead"]
         if md.get("failure_mode") is not None:
             entry["failure_mode"] = md["failure_mode"]
+        if md.get("scene_archetype") is not None:
+            entry["scene_archetype"] = md["scene_archetype"]
+        if md.get("style_profile_fragment") is not None:
+            entry["style_profile_fragment"] = md["style_profile_fragment"]
+        if md.get("corpus_backed"):
+            entry["corpus_backed"] = True
         urls.append(entry)
 
     urls.sort(key=lambda u: (u.get("variant_index") is None, u.get("variant_index", 0)))
@@ -244,6 +294,13 @@ async def _build_poll_response(pool: Any, run_id: uuid.UUID, settings: Any) -> d
     }
     if error:
         out["error"] = error
+    if picked_variant_index is not None:
+        picked = next(
+            (u for u in urls if u.get("variant_index") == picked_variant_index),
+            None,
+        )
+        if picked is not None:
+            out["picked_variant"] = picked
     return out
 
 
@@ -442,12 +499,21 @@ async def regenerate_hero_variant(request: Request) -> JSONResponse:
 
 
 @router.get("/images/hero-candidates/{run_id}")
-async def get_hero_candidates_status(run_id: uuid.UUID, request: Request) -> JSONResponse:
+async def get_hero_candidates_status(
+    run_id: uuid.UUID,
+    request: Request,
+    picked_variant_index: int | None = None,
+) -> JSONResponse:
     await require_hmac_get(request)
     services = request.app.state.services
     pool = getattr(services, "pool", None)
     if pool is None:
         return JSONResponse(status_code=503, content={"detail": "database_unavailable"})
 
-    body = await _build_poll_response(pool, run_id, services.settings)
+    body = await _build_poll_response(
+        pool,
+        run_id,
+        services.settings,
+        picked_variant_index=picked_variant_index,
+    )
     return JSONResponse(status_code=200, content=body)

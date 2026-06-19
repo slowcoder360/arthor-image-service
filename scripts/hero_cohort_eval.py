@@ -3,7 +3,8 @@
 
 Usage:
   python scripts/hero_cohort_eval.py --base-url http://127.0.0.1:8010
-  python scripts/hero_cohort_eval.py --replicates 2 --output scratch/hero-cohort-eval
+  python scripts/hero_cohort_eval.py --scenario-set triad --replicates 2
+  python scripts/hero_cohort_eval.py --scenario-set canary --hero-viewport desktop
 
 Writes:
   {output}/cohort_results.csv
@@ -110,7 +111,7 @@ COHORT_SCENARIOS: list[dict[str, Any]] = [
         ],
     },
     {
-        "slug": "general_services",
+        "slug": "outdoor_services",
         "business": {
             "site_name": "GreenPath Landscaping",
             "industry": "landscaping",
@@ -127,7 +128,102 @@ COHORT_SCENARIOS: list[dict[str, Any]] = [
             {"tone_angle": "offer", "headline": "Spring cleanup special", "subhead": "Book your first visit"},
         ],
     },
+    {
+        "slug": "general_services",
+        "business": {
+            "site_name": "Shield Pest Solutions",
+            "industry": "pest control",
+            "icp_summary": "homeowners needing reliable pest prevention",
+            "value_prop": "safe effective pest control with clear pricing",
+            "proof_points": [],
+            "forbidden_subjects": [],
+            "priority_services": ["termite treatment", "rodent control"],
+        },
+        "location": {"mode": "local", "country": "US", "city": "Austin", "region": "TX", "service_areas": []},
+        "variants": [
+            {"tone_angle": "search", "headline": "Pest problems solved in Austin", "subhead": "Licensed technicians"},
+            {"tone_angle": "story", "headline": "Protection you can count on", "subhead": "Family-safe treatments"},
+            {"tone_angle": "offer", "headline": "Free home inspection", "subhead": "Book this week"},
+        ],
+    },
 ]
+
+# Edge-case routing matrix — one canary image per slug (variant 0 / search only in CSV).
+# See plan/HANDOFF-HERO-CORPUS-CANARY-GRID.md
+_CANARY_MATRIX: list[tuple[str, str, str, str | None]] = [
+    ("dental", "dental", "dental", "Bright Smile Family Dental"),
+    ("orthodontics", "orthodontist", "dental", "Align Orthodontics"),
+    ("personal_injury_law", "personal injury law", "legal", "Mendez & Associates Law"),
+    ("family_law", "family law attorney", "legal", "Harbor Family Law"),
+    ("hvac", "hvac repair", "home_services", "CoolAir HVAC Pros"),
+    ("plumbing", "plumbing service", "home_services", "FlowRight Plumbing"),
+    ("roofing", "roofing contractor", "home_services", "Summit Roofing Co"),
+    ("electric", "electrician", "home_services", "BrightWire Electric"),
+    ("garage_door", "garage door repair", "home_services", "LiftPro Garage Doors"),
+    ("pest_control", "pest control", "general_services", "Shield Pest Solutions"),
+    ("house_cleaning", "house cleaning service", "general_services", "Sparkle Home Cleaning"),
+    ("landscaping", "landscaping", "outdoor_services", "GreenPath Landscaping"),
+    ("arborist", "arborist tree care", "outdoor_services", "Canopy Tree Care"),
+    ("tree_removal", "tree removal service", "outdoor_services", "TimberLine Tree Service"),
+    ("concrete_paving", "concrete paving contractor", "general_services", "SolidPath Paving"),
+    ("pool_service", "pool cleaning service", "general_services", "ClearBlue Pool Care"),
+    ("fencing", "fence installation", "outdoor_services", "Borderline Fencing"),
+    ("physical_therapy", "physical therapy clinic", "healthcare", "Peak Physical Therapy"),
+    ("chiro", "chiropractor", "healthcare", "Align Chiropractic"),
+    ("veterinary", "veterinary clinic", "healthcare", "Paws & Claws Veterinary"),
+    ("med_spa", "medical spa", "healthcare", "Radiance Med Spa"),
+    ("auto_repair", "auto repair shop", "general_services", "Precision Auto Repair"),
+    ("salon", "hair salon", "general_services", "Studio 12 Salon"),
+    ("restaurant", "restaurant", "general_services", "Harvest Table Restaurant"),
+    ("property_management", "property management", "general_services", "KeyStone Property Mgmt"),
+    ("insurance_agency", "insurance agency", "general_services", "Guardian Insurance Group"),
+    ("cpa", "cpa accounting firm", "general_services", "Ledger & Lane CPA"),
+    ("gym", "fitness gym", "general_services", "Forge Fitness Gym"),
+    ("real_estate", "real estate agent", "general_services", "Harbor Realty Group"),
+    ("wedding_venue", "wedding venue", "general_services", "Willow Creek Venue"),
+]
+
+_DEFAULT_LOCATION = {"mode": "local", "country": "US", "city": "Austin", "region": "TX", "service_areas": []}
+
+# API requires 3 variants; canary mode records variant 0 only (search / trust).
+_CANARY_PAD_VARIANTS: list[dict[str, str]] = [
+    {"tone_angle": "story", "headline": "Care that feels personal", "subhead": "Trusted local service"},
+    {"tone_angle": "offer", "headline": "Book your visit", "subhead": "Limited availability"},
+]
+
+
+def _build_canary_scenarios() -> list[dict[str, Any]]:
+    scenarios: list[dict[str, Any]] = []
+    for slug, industry, expected_label, site_name in _CANARY_MATRIX:
+        display = site_name or slug.replace("_", " ").title()
+        scenarios.append(
+            {
+                "slug": slug,
+                "expected_label": expected_label,
+                "business": {
+                    "site_name": display,
+                    "industry": industry,
+                    "icp_summary": "local customers comparing trusted providers",
+                    "value_prop": "reliable professional service with clear communication",
+                    "proof_points": [],
+                    "forbidden_subjects": [],
+                    "priority_services": [],
+                },
+                "location": dict(_DEFAULT_LOCATION),
+                "variants": [
+                    {
+                        "tone_angle": "search",
+                        "headline": f"Find {display} you trust",
+                        "subhead": "Serving your local area",
+                    },
+                    *_CANARY_PAD_VARIANTS,
+                ],
+            }
+        )
+    return scenarios
+
+
+CANARY_SCENARIOS: list[dict[str, Any]] = _build_canary_scenarios()
 
 _SHARED_BRAND = {
     "brand_voice": {
@@ -172,39 +268,75 @@ _SHARED_BRAND = {
 }
 
 
+# Justin override: palette_drift flags for human review but is not a hard QA fail.
+
+
+def qa_pass_from_failure_mode(*, has_url: bool, failure_mode: str) -> bool:
+    if not has_url:
+        return False
+    fm = failure_mode.strip()
+    if not fm or fm == "pass":
+        return True
+    if fm == "palette_drift":
+        return True
+    return False
+
+
+def check_routing(scenario: dict[str, Any]) -> tuple[str, str | None]:
+    """Return (resolved_label, expected_label or None if match)."""
+    industry = str(scenario["business"]["industry"])
+    resolved = resolve_industry(industry).label
+    expected = scenario.get("expected_label")
+    if expected and resolved != expected:
+        return resolved, str(expected)
+    return resolved, None
+
+
 def build_payload(
     scenario: dict[str, Any],
     *,
     replicate: int,
     hero_viewport: str,
+    scenario_set: str = "triad",
 ) -> dict[str, Any]:
     site_id = str(uuid.uuid4())
     industry = str(scenario["business"]["industry"])
-    label = resolve_industry(industry).label
+    resolved, _ = check_routing(scenario)
+    key_prefix = "canary" if scenario_set == "canary" else "cohort"
     return {
         "site_id": site_id,
-        "idempotency_key": f"cohort:{scenario['slug']}:r{replicate}:{uuid.uuid4()}",
+        "idempotency_key": f"{key_prefix}:{scenario['slug']}:r{replicate}:{uuid.uuid4()}",
         "payload_version": "hero_candidates.2",
         "hero_viewport": hero_viewport,
+        "generation_mode": "live",
         "default_provider_hint": "openai_image",
         "business": scenario["business"],
         "location": scenario["location"],
         "variants": scenario["variants"],
         "base_seed": 100 + replicate * 17,
         **_SHARED_BRAND,
-        "_eval_meta": {"slug": scenario["slug"], "industry_label": label, "replicate": replicate},
+        "_eval_meta": {
+            "slug": scenario["slug"],
+            "industry": industry,
+            "industry_label": resolved,
+            "expected_label": scenario.get("expected_label") or resolved,
+            "replicate": replicate,
+            "scenario_set": scenario_set,
+        },
     }
 
 
 @dataclass
 class VariantRow:
     slug: str
+    industry: str
     industry_label: str
     replicate: int
     run_id: str
     run_status: str
     variant_index: int
     tone_angle: str
+    scene_archetype: str
     qa_pass: bool
     failure_mode: str
     url: str
@@ -217,6 +349,8 @@ class CohortEval:
     secret: str
     poll_interval_s: float = 8.0
     poll_timeout_s: float = 900.0
+    variant_indices: tuple[int, ...] = (0, 1, 2)
+    routing_mismatches: list[str] = field(default_factory=list)
     rows: list[VariantRow] = field(default_factory=list)
     run_errors: list[str] = field(default_factory=list)
 
@@ -260,7 +394,7 @@ def submit_and_poll(eval_ctx: CohortEval, payload: dict[str, Any], meta: dict[st
         urls = body.get("urls") or []
         run_status = str(body.get("status") or "timeout")
         url_by_idx = {int(u.get("variant_index", -1)): u for u in urls if u.get("variant_index") is not None}
-        for idx in range(3):
+        for idx in eval_ctx.variant_indices:
             u = url_by_idx.get(idx, {})
             fm = str(u.get("failure_mode") or "")
             has_url = bool(u.get("url"))
@@ -272,13 +406,15 @@ def submit_and_poll(eval_ctx: CohortEval, payload: dict[str, Any], meta: dict[st
             eval_ctx.rows.append(
                 VariantRow(
                     slug=str(meta.get("slug") or ""),
+                    industry=str(meta.get("industry") or ""),
                     industry_label=str(meta.get("industry_label") or ""),
                     replicate=int(meta.get("replicate") or 0),
                     run_id=run_id,
                     run_status=run_status,
                     variant_index=idx,
                     tone_angle=str(u.get("tone_angle") or ""),
-                    qa_pass=has_url and not fm,
+                    scene_archetype=str(u.get("scene_archetype") or ""),
+                    qa_pass=qa_pass_from_failure_mode(has_url=has_url, failure_mode=fm),
                     failure_mode=fm or ("pass" if has_url else "no_image"),
                     url=str(u.get("url") or ""),
                     headline=str(u.get("headline") or ""),
@@ -288,7 +424,7 @@ def submit_and_poll(eval_ctx: CohortEval, payload: dict[str, Any], meta: dict[st
             eval_ctx.run_errors.append(f"{meta.get('slug')} run {run_id}: {body['error']}")
 
 
-def write_outputs(eval_ctx: CohortEval, output_dir: Path) -> None:
+def write_outputs(eval_ctx: CohortEval, output_dir: Path, *, scenario_set: str = "triad") -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     csv_path = output_dir / "cohort_results.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as fh:
@@ -296,12 +432,14 @@ def write_outputs(eval_ctx: CohortEval, output_dir: Path) -> None:
             fh,
             fieldnames=[
                 "slug",
+                "industry",
                 "industry_label",
                 "replicate",
                 "run_id",
                 "run_status",
                 "variant_index",
                 "tone_angle",
+                "scene_archetype",
                 "qa_pass",
                 "failure_mode",
                 "url",
@@ -325,11 +463,13 @@ def write_outputs(eval_ctx: CohortEval, output_dir: Path) -> None:
         (r.tone_angle, r.failure_mode) for r in eval_ctx.rows if not r.qa_pass and r.tone_angle
     )
 
+    title = "Hero canary grid summary" if scenario_set == "canary" else "Hero cohort eval summary"
     lines = [
-        "# Hero cohort eval summary",
+        f"# {title}",
         "",
         f"- **Generated:** {datetime.now(timezone.utc).isoformat()}",
         f"- **Base URL:** {eval_ctx.base_url}",
+        f"- **Scenario set:** {scenario_set}",
         f"- **Variants scored:** {total}",
         f"- **QA pass:** {passed} ({100 * passed / total:.1f}%)" if total else "- **QA pass:** 0",
         f"- **QA fail:** {failed} ({100 * failed / total:.1f}%)" if total else "- **QA fail:** 0",
@@ -365,6 +505,13 @@ def write_outputs(eval_ctx: CohortEval, output_dir: Path) -> None:
     else:
         lines.append("- none")
 
+    if eval_ctx.routing_mismatches:
+        lines.extend(["", "## Industry routing mismatches", ""])
+        for err in eval_ctx.routing_mismatches:
+            lines.append(f"- {err}")
+    else:
+        lines.extend(["", "## Industry routing mismatches", "", "- none"])
+
     if eval_ctx.run_errors:
         lines.extend(["", "## Run-level errors", ""])
         for err in eval_ctx.run_errors:
@@ -398,6 +545,12 @@ def main() -> None:
     parser.add_argument("--replicates", type=int, default=1, help="Triads per industry scenario")
     parser.add_argument("--hero-viewport", default="desktop", choices=("desktop", "mobile"))
     parser.add_argument("--scenarios", nargs="*", default=None, help="Subset of slugs")
+    parser.add_argument(
+        "--scenario-set",
+        default="triad",
+        choices=("triad", "canary", "canary-triad"),
+        help="triad: 6 coarse industries × 3 variants; canary: edge slugs × variant 0; canary-triad: 30 slugs × 3 variants",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -407,34 +560,82 @@ def main() -> None:
         sys.exit(1)
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    output_dir = args.output or (ROOT / "scratch" / f"hero-cohort-eval-{ts}")
+    default_prefix = (
+        "hero-cohort-canary"
+        if args.scenario_set in ("canary", "canary-triad")
+        else "hero-cohort-eval"
+    )
+    output_dir = args.output or (ROOT / "scratch" / f"{default_prefix}-{ts}")
 
-    scenarios = COHORT_SCENARIOS
+    scenario_pool = CANARY_SCENARIOS if args.scenario_set.startswith("canary") else COHORT_SCENARIOS
+    scenarios = scenario_pool
     if args.scenarios:
         wanted = set(args.scenarios)
-        scenarios = [s for s in COHORT_SCENARIOS if s["slug"] in wanted]
+        scenarios = [s for s in scenario_pool if s["slug"] in wanted]
         if not scenarios:
             print(f"No scenarios matched {wanted}", file=sys.stderr)
             sys.exit(1)
 
-    plan_count = len(scenarios) * args.replicates * 3
-    print(f"Plan: {len(scenarios)} industries × {args.replicates} triad(s) = {plan_count} images")
+    variants_per_run = 1 if args.scenario_set == "canary" else 3
+    plan_count = len(scenarios) * args.replicates * variants_per_run
+    if args.scenario_set == "canary":
+        print(f"Plan: {len(scenarios)} canary slug(s) × {args.replicates} run(s) = {plan_count} image(s) (variant 0)")
+    elif args.scenario_set == "canary-triad":
+        print(f"Plan: {len(scenarios)} canary slug(s) × {args.replicates} triad(s) = {plan_count} images (variants 0–2)")
+    else:
+        print(f"Plan: {len(scenarios)} industries × {args.replicates} triad(s) = {plan_count} images")
+
+    routing_mismatches: list[str] = []
+    for sc in scenarios:
+        resolved, expected = check_routing(sc)
+        if expected:
+            routing_mismatches.append(
+                f"`{sc['slug']}` industry `{sc['business']['industry']}` → `{resolved}` (expected `{expected}`)"
+            )
+
+    if routing_mismatches:
+        print(f"Routing mismatches: {len(routing_mismatches)}", file=sys.stderr)
+        for line in routing_mismatches:
+            print(f"  {line}", file=sys.stderr)
 
     if args.dry_run:
         for sc in scenarios:
             for rep in range(args.replicates):
-                p = build_payload(sc, replicate=rep, hero_viewport=args.hero_viewport)
-                label = resolve_industry(p["business"]["industry"]).label
-                print(f"  {sc['slug']} ({label}) replicate={rep}")
+                p = build_payload(
+                    sc,
+                    replicate=rep,
+                    hero_viewport=args.hero_viewport,
+                    scenario_set=args.scenario_set,
+                )
+                meta = p["_eval_meta"]
+                print(
+                    f"  {sc['slug']} ({meta['industry_label']}) replicate={rep}"
+                    + (
+                        f" expected={meta['expected_label']}"
+                        if args.scenario_set.startswith("canary")
+                        else ""
+                    )
+                )
         sys.exit(0)
 
-    eval_ctx = CohortEval(base_url=args.base_url.rstrip("/"), secret=settings.fastapi_arthor_shared_secret)
+    variant_indices = (0,) if args.scenario_set == "canary" else (0, 1, 2)
+    eval_ctx = CohortEval(
+        base_url=args.base_url.rstrip("/"),
+        secret=settings.fastapi_arthor_shared_secret,
+        variant_indices=variant_indices,
+        routing_mismatches=routing_mismatches,
+    )
     payload_dir = output_dir / "payloads"
     payload_dir.mkdir(parents=True, exist_ok=True)
 
     for sc in scenarios:
         for rep in range(args.replicates):
-            payload = build_payload(sc, replicate=rep, hero_viewport=args.hero_viewport)
+            payload = build_payload(
+                sc,
+                replicate=rep,
+                hero_viewport=args.hero_viewport,
+                scenario_set=args.scenario_set,
+            )
             meta = payload["_eval_meta"]
             slug = sc["slug"]
             print(f"Submitting {slug} replicate={rep} …", flush=True)
@@ -444,7 +645,7 @@ def main() -> None:
             )
             submit_and_poll(eval_ctx, payload, meta)
 
-    write_outputs(eval_ctx, output_dir)
+    write_outputs(eval_ctx, output_dir, scenario_set=args.scenario_set.replace("-triad", ""))
     passed = sum(1 for r in eval_ctx.rows if r.qa_pass)
     total = len(eval_ctx.rows)
     print(f"Done: {passed}/{total} passed QA gates")

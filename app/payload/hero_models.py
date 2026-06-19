@@ -49,6 +49,8 @@ _HERO_CALLBACK_URL = "https://arthor-ai.invalid/hero-candidates-no-callback"
 HeroPayloadVersion = Literal["hero_candidates.1", "hero_candidates.2"]
 HeroViewport = Literal["desktop", "mobile"]
 HeroEditKind = Literal["retry", "tweak", "reference", "rescene", "mobile_from_desktop"]
+HeroGenerationMode = Literal["corpus", "live"]
+CorpusFallback = Literal["live"]
 
 
 class HeroRegenerateVariantBody(BaseModel):
@@ -146,6 +148,9 @@ class HeroCandidatesRequest(BaseModel):
     payload_version: HeroPayloadVersion = "hero_candidates.1"
     hero_viewport: HeroViewport = "desktop"
     source_desktop_run_id: UUID4 | None = None
+    generation_mode: HeroGenerationMode = "corpus"
+    corpus_version: str = "2.0"
+    corpus_fallback: CorpusFallback | None = None
 
     @model_validator(mode="after")
     def _desktop_seed_requires_mobile(self) -> HeroCandidatesRequest:

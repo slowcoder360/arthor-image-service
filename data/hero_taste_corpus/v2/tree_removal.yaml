@@ -1,0 +1,41 @@
+corpus_version: '2.0'
+slug: tree_removal
+industry_label: outdoor_services
+match_keys:
+- tree removal service
+- tree removal
+- tree_removal
+variants:
+- variant_index: 0
+  scene_archetype: environment_warmth
+  hero_job: trust
+  r2_key: hero-candidates/8700fc7b-b0b9-49dc-9463-9f0dd4284c27/0.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/8700fc7b-b0b9-49dc-9463-9f0dd4284c27/0.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin
+- variant_index: 1
+  scene_archetype: confident_smile
+  hero_job: experience
+  r2_key: hero-candidates/8700fc7b-b0b9-49dc-9463-9f0dd4284c27/1.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/8700fc7b-b0b9-49dc-9463-9f0dd4284c27/1.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin
+- variant_index: 2
+  scene_archetype: threshold_relief
+  hero_job: outcome
+  r2_key: hero-candidates/8700fc7b-b0b9-49dc-9463-9f0dd4284c27/2.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/8700fc7b-b0b9-49dc-9463-9f0dd4284c27/2.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin

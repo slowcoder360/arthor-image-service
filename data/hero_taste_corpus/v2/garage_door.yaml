@@ -1,0 +1,41 @@
+corpus_version: '2.0'
+slug: garage_door
+industry_label: home_services
+match_keys:
+- garage door repair
+- garage door
+- garage_door
+variants:
+- variant_index: 0
+  scene_archetype: threshold_invitation
+  hero_job: trust
+  r2_key: hero-candidates/6b34fde9-9f24-413a-bd51-b8ec96fcaf87/0.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/6b34fde9-9f24-413a-bd51-b8ec96fcaf87/0.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin
+- variant_index: 1
+  scene_archetype: desk_side_guidance
+  hero_job: experience
+  r2_key: hero-candidates/6b34fde9-9f24-413a-bd51-b8ec96fcaf87/1.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/6b34fde9-9f24-413a-bd51-b8ec96fcaf87/1.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin
+- variant_index: 2
+  scene_archetype: environment_warmth
+  hero_job: outcome
+  r2_key: hero-candidates/6b34fde9-9f24-413a-bd51-b8ec96fcaf87/2.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/6b34fde9-9f24-413a-bd51-b8ec96fcaf87/2.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '4.1'
+  approved_at: '2026-06-18'
+  approved_by: justin

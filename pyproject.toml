@@ -20,6 +20,7 @@ dependencies = [
     "openai",
     "google-genai",
     "Pillow",
+    "PyYAML",
     "python-dotenv",
     "uvicorn[standard]",
 ]

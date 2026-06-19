@@ -19,57 +19,18 @@ SceneArchetypeId = Literal[
 
 AuthenticityMode = Literal["stylized", "space_anchored", "likeness_anchored"]
 
-STRATEGY_VERSION = "1.2"
-SCENE_CATALOG_VERSION = "1.2"
+STRATEGY_VERSION = "1.4"
+SCENE_CATALOG_VERSION = "1.3"
 
-_FAMILY_ICP_KEYS: tuple[str, ...] = (
-    "famil",
-    "parent",
-    "child",
-    "kid",
-    "pediatric",
-    "youth",
-)
-
-_TONE_DEFAULT_ARCHETYPE: dict[str, SceneArchetypeId] = {
-    "search": "confident_smile",
-    "story": "threshold_relief",
-    "offer": "confident_smile",
-}
-
-_FAMILY_DENTAL_TRIAD: dict[str, SceneArchetypeId] = {
-    "search": "shared_joy",
-    "story": "shared_joy",
-    "offer": "confident_smile",
-}
-
-# Cohort review 2026-06: avoid generic family/shared_joy at residential home for non-dental verticals.
-_INDUSTRY_SCENE_TRIAD: dict[str, dict[str, SceneArchetypeId]] = {
-    "legal": {
-        "search": "desk_side_guidance",
-        "story": "desk_side_guidance",
-        "offer": "confident_smile",
-    },
-    "home_services": {
-        "search": "desk_side_guidance",
-        "story": "desk_side_guidance",
-        "offer": "confident_smile",
-    },
-    "healthcare": {
-        "search": "desk_side_guidance",
-        "story": "desk_side_guidance",
-        "offer": "confident_smile",
-    },
-    "outdoor_services": {
-        "search": "confident_smile",
-        "story": "confident_smile",
-        "offer": "environment_warmth",
-    },
-    "general_services": {
-        "search": "desk_side_guidance",
-        "story": "desk_side_guidance",
-        "offer": "confident_smile",
-    },
+# Builder visual triad: variant_index 0|1|2 → distinct scene archetypes per industry.
+# tone_angle remains on ingress for analytics only — not scene selection.
+INDUSTRY_VISUAL_TRIAD: dict[str, tuple[SceneArchetypeId, SceneArchetypeId, SceneArchetypeId]] = {
+    "dental": ("threshold_invitation", "shared_joy", "confident_smile"),
+    "legal": ("desk_side_guidance", "threshold_invitation", "confident_smile"),
+    "home_services": ("threshold_invitation", "desk_side_guidance", "environment_warmth"),
+    "healthcare": ("threshold_invitation", "desk_side_guidance", "confident_smile"),
+    "outdoor_services": ("environment_warmth", "confident_smile", "threshold_relief"),
+    "general_services": ("desk_side_guidance", "threshold_invitation", "confident_smile"),
 }
 
 
@@ -145,11 +106,12 @@ INDUSTRY_BACKDROP_MODIFIERS: dict[str, str] = {
     ),
     "legal": "measured professional law office — attorney and client at desk, not family at threshold",
     "home_services": (
-        "on-site home service visit — technician with homeowner at entryway or exterior; "
-        "active service conversation, not couch leisure"
+        "on-site home service at exterior work area — roofline, garage facade, utility area, or driveway; "
+        "homeowner face visible, technician back or profile; not couch leisure"
     ),
     "healthcare": (
-        "welcoming clinic or therapy office — professional attire; not gym, athletic wear, or residential interior"
+        "welcoming clinic or therapy office — provider in scrubs or white coat, patient in street clothes; "
+        "not gym, athletic wear, or residential interior"
     ),
     "outdoor_services": (
         "outdoor property with lawn, garden, or yard maintenance visible — daylight, not indoor domestic scenes"
@@ -164,16 +126,17 @@ INDUSTRY_ENVIRONMENT_ANCHORS: dict[str, str] = {
         "or instruments as focal point"
     ),
     "healthcare": (
-        "Environment anchors: recognizable clinic or therapy office; clean consult room; "
-        "no gym equipment, athletic wear, or residential interior"
+        "Environment anchors: recognizable clinic or therapy consult room; provider in scrubs or white coat ONLY, "
+        "patient in everyday street clothes; no gym equipment, both subjects in medical attire, or residential interior"
     ),
     "legal": (
         "Environment anchors: law office consult room with desk or table; professional attire; "
         "attorney and single client — not a family group at a doorway"
     ),
     "home_services": (
-        "Environment anchors: home exterior, entryway, or utility area with technician present; "
-        "visible service visit — not living-room couch leisure"
+        "Environment anchors: home exterior work site — roofline, garage facade, utility area, or driveway concrete "
+        "with technician present; homeowner face toward camera, provider back or profile — not living-room couch "
+        "leisure or doorway inversion"
     ),
     "outdoor_services": (
         "Environment anchors: lawn, garden, or landscaped yard; outdoor daylight; "
@@ -183,31 +146,85 @@ INDUSTRY_ENVIRONMENT_ANCHORS: dict[str, str] = {
 
 INDUSTRY_SUBJECT_GUIDANCE: dict[str, str] = {
     "dental": (
-        "People are the hero subject; dental clinic environment visible behind them — "
-        "never a residential home, living room, or kitchen"
+        "People are the hero subject with gender and age diversity (mix of adults and children, male and female); "
+        "dental clinic environment visible behind them — never a residential home, living room, or kitchen"
     ),
     "healthcare": (
-        "Provider and patient in professional clinical attire; clinic environment visible — "
-        "not gym, athletic wear, or residential interior"
+        "Exactly one person in scrubs, white coat, or clinical uniform; patient in everyday street clothes; "
+        "both faces visible at desk consult — never both subjects in medical attire"
     ),
     "legal": (
         "Attorney and client in one-on-one consultation — not a family walking through a doorway"
     ),
     "home_services": (
-        "Technician with homeowner during an on-site service visit — not passive family on a couch"
+        "Homeowner face visible toward camera; technician with back, three-quarter rear, or profile at exterior "
+        "work site — roofline, garage facade, utility area, or driveway; not passive family on couch, not seated "
+        "patio scenes, not provider welcoming homeowner into their own home"
     ),
     "outdoor_services": (
-        "Landscaping or yard work context outdoors — not kitchen-table or living-room leisure"
+        "Landscaping, tree removal, or fence work outdoors — crew or pro with homeowner on property; "
+        "not kitchen-table or living-room leisure"
     ),
     "general_services": (
         "Provider and customer with visible service context — not domestic leisure without a service cue"
     ),
 }
 
+# Industry-specific scene people overrides (archetype × label).
+INDUSTRY_SCENE_PEOPLE_OVERRIDES: dict[tuple[str, SceneArchetypeId], str] = {
+    ("home_services", "threshold_invitation"): (
+        "homeowner approaching from outside with face visible toward camera; technician at exterior work site "
+        "with back, three-quarter rear, or profile — not provider in doorway welcoming customer inward"
+    ),
+}
 
-def _is_family_icp(icp_summary: str) -> bool:
-    low = icp_summary.lower()
-    return any(k in low for k in _FAMILY_ICP_KEYS)
+# Vertical keyword overrides within general_services (product/environment hero, not desk consult).
+_VERTICAL_SUBJECT_GUIDANCE: tuple[tuple[tuple[str, ...], str], ...] = (
+    (
+        ("restaurant", "cafe", "bistro", "dining"),
+        "Food and venue as hero — warm dining room, plated dishes, or inviting restaurant interior; "
+        "people optional; not desk-side consultation",
+    ),
+    (
+        ("salon", "hair salon", "barber", "spa nail"),
+        "Salon chair, mirror station, and styling context as hero — product and environment focus; "
+        "not desk-side consultation",
+    ),
+    (
+        ("pool clean", "pool service", "pool maintenance"),
+        "Pool and outdoor backyard setting as hero — sparkling water, deck, and maintenance context; "
+        "not desk-side consultation",
+    ),
+)
+
+_PRODUCT_HERO_INDEX_ZERO_KEYS: tuple[str, ...] = (
+    "restaurant",
+    "cafe",
+    "bistro",
+    "salon",
+    "hair salon",
+    "barber",
+    "pool clean",
+    "pool service",
+    "pool maintenance",
+)
+
+
+def resolve_vertical_subject_guidance(industry: str) -> str | None:
+    low = industry.lower()
+    for keys, guidance in _VERTICAL_SUBJECT_GUIDANCE:
+        if any(k in low for k in keys):
+            return guidance
+    return None
+
+
+def scene_people_for_industry(archetype_id: SceneArchetypeId, industry_label: str) -> str | None:
+    return INDUSTRY_SCENE_PEOPLE_OVERRIDES.get((industry_label, archetype_id))
+
+
+def _is_product_hero_industry(industry: str) -> bool:
+    low = industry.lower()
+    return any(k in low for k in _PRODUCT_HERO_INDEX_ZERO_KEYS)
 
 
 def resolve_authenticity_mode(request: HeroCandidatesRequest) -> AuthenticityMode:
@@ -224,31 +241,20 @@ def resolve_authenticity_mode(request: HeroCandidatesRequest) -> AuthenticityMod
 
 def resolve_scene_archetype(
     request: HeroCandidatesRequest,
-    variant: HeroVariantSlot,
+    variant_index: int,
 ) -> SceneArchetypeId:
-    """Lookup scene archetype from tone, industry, and ICP — deterministic, no LLM."""
-    tone = variant.tone_angle or "search"
-    ctx = resolve_industry(request.business.industry)
-    family = _is_family_icp(request.business.icp_summary)
-
-    if ctx.label == "dental" and family:
-        return _FAMILY_DENTAL_TRIAD.get(tone, _TONE_DEFAULT_ARCHETYPE.get(tone, "confident_smile"))
-
-    industry_triad = _INDUSTRY_SCENE_TRIAD.get(ctx.label)
-    if industry_triad is not None:
-        return industry_triad.get(tone, _TONE_DEFAULT_ARCHETYPE.get(tone, "confident_smile"))
-
-    if tone == "offer":
-        return "confident_smile"
-    if tone == "search" and family:
-        return "shared_joy"
-    if tone == "story" and family:
-        return "shared_joy"
-    if tone == "search":
-        return "confident_smile"
-    if tone == "story":
-        return "desk_side_guidance"
-    return _TONE_DEFAULT_ARCHETYPE.get(tone, "confident_smile")
+    """Lookup scene archetype from industry + variant_index — deterministic, no LLM."""
+    if variant_index not in (0, 1, 2):
+        raise ValueError("variant_index must be 0, 1, or 2")
+    industry = request.business.industry
+    if variant_index == 0 and _is_product_hero_industry(industry):
+        return "environment_warmth"
+    ctx = resolve_industry(industry)
+    triad = INDUSTRY_VISUAL_TRIAD.get(
+        ctx.label,
+        INDUSTRY_VISUAL_TRIAD["general_services"],
+    )
+    return triad[variant_index]
 
 
 def industry_backdrop_modifier(industry_label: str) -> str:
@@ -262,7 +268,10 @@ def industry_environment_anchors(industry_label: str) -> str | None:
     return INDUSTRY_ENVIRONMENT_ANCHORS.get(industry_label)
 
 
-def hero_subject_guidance(industry_label: str) -> str:
+def hero_subject_guidance(industry_label: str, *, industry: str = "") -> str:
+    vertical = resolve_vertical_subject_guidance(industry) if industry else None
+    if vertical:
+        return vertical
     return INDUSTRY_SUBJECT_GUIDANCE.get(
         industry_label,
         "Show human outcome and connection — never business equipment or empty rooms as hero.",
@@ -313,7 +322,7 @@ def resolve_hero_visual_strategy(request: HeroCandidatesRequest) -> HeroVisualSt
     auth = resolve_authenticity_mode(request)
     variants: list[VariantVisualStrategy] = []
     for index, variant in enumerate(request.variants):
-        archetype = resolve_scene_archetype(request, variant)
+        archetype = resolve_scene_archetype(request, index)
         variants.append(
             VariantVisualStrategy(
                 variant_index=index,
@@ -340,6 +349,6 @@ def resolve_variant_visual_strategy(
     return VariantVisualStrategy(
         variant_index=index,
         tone_angle=variant.tone_angle,
-        scene_archetype=resolve_scene_archetype(request, variant),
+        scene_archetype=resolve_scene_archetype(request, index),
         authenticity_mode=resolve_authenticity_mode(request),
     )

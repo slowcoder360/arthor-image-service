@@ -57,7 +57,10 @@ Poll reflects **database asset state only** — not live OpenAI/Google job statu
       "tone_angle": "search",       // when present on asset metadata
       "headline": "…",              // echo from request — preview only
       "subhead": "…",
-      "failure_mode": "palette_drift"  // optional QA / provider flag
+      "failure_mode": "palette_drift",  // optional QA / provider flag
+      "scene_archetype": "threshold_invitation",  // optional — U9 index-driven scene
+      "style_profile_fragment": { "lighting": "…", "color_grading": "…" },  // optional — corpus pick export
+      "corpus_backed": true         // optional — true when served from taste corpus
     }
   ],
   "error": "…"                      // only when status === "failed"
@@ -75,6 +78,10 @@ Poll reflects **database asset state only** — not live OpenAI/Google job statu
 | `failed` | Run failed or zero uploads |
 
 `urls` includes **uploaded** assets only, sorted by `variant_index`. Images with QA flags are still returned — check `failure_mode` per URL.
+
+Optional query on poll: `GET …/{run_id}?picked_variant_index=0` adds top-level `picked_variant` (same shape as one `urls[]` entry) for style export after builder pick.
+
+**Regenerate-variant** always uses **live** OpenAI — no corpus path (user rejected corpus options).
 
 ### `POST /images/hero-candidates/regenerate-variant`
 
@@ -130,6 +137,9 @@ Pydantic model: [`app/payload/hero_models.py`](../app/payload/hero_models.py). `
 | `default_provider_hint` | `"openai_image"` \| `"google_nano_banana"` | no | **Ignored for generation** — worker forces OpenAI |
 | `payload_version` | `"hero_candidates.1"` \| `"hero_candidates.2"` | no | Default `"hero_candidates.1"` |
 | `hero_viewport` | `"desktop"` \| `"mobile"` | no | Default `"desktop"`; affects dimensions + safe zones |
+| `generation_mode` | `"corpus"` \| `"live"` | no | Default **`"corpus"`** — builder style pick uses curated plates (no OpenAI). Use `"live"` for escape hatch / build-time gen. |
+| `corpus_version` | string | no | Default `"1.0"` — pins corpus snapshot under `data/hero_taste_corpus/v1/` |
+| `corpus_fallback` | `"live"` | no | When corpus missing for industry: default **400** (`corpus_not_available_for_industry`). Set `"live"` to fall back to OpenAI worker. |
 
 ### `business`
 
@@ -338,6 +348,18 @@ Images with `failure_mode` are **still uploaded and returned** — builder may o
 
 **Do not send** raw provider prompts from arthor-ai. **Do not expect** headlines in compiled prompts (verify via inspector `/inspector/hero-ab` or run metadata).
 
+### Builder vs build-time (seo-service boundary)
+
+| Step | Mode | Owner |
+|------|------|-------|
+| **Builder hero triad (style pick)** | `generation_mode: "corpus"` (default) | image-service taste corpus — zero provider cost |
+| **User rejects corpus / regenerate-variant** | live OpenAI | image-service worker |
+| **Full site build asset pack** | live OpenAI | seo-service `asset_pack_plan` → arthor-ai merges → PayloadV1 on asset-pack routes |
+
+Builder hero triad uses corpus mode. Full-site images at build use seo-service `asset_pack_plan` + arthor-ai merge → PayloadV1 live gen. **image-service does NOT read `asset_pack_plan`**; it receives merged PayloadV1 only on asset-pack routes.
+
+After pick, merge poll `urls[].style_profile_fragment` into PayloadV1 `style_profile_hint` at asset-pack submit (arthor-ai responsibility — lighting / color_grading / composition_rules keys only).
+
 ---
 
 ## Example: minimal generate body
@@ -392,6 +414,8 @@ Images with `failure_mode` are **still uploaded and returned** — builder may o
 
 | Version | Change |
 |---------|--------|
+| U10 corpus | Default `generation_mode: "corpus"`; optional poll fields `scene_archetype`, `style_profile_fragment`, `corpus_backed`; `picked_variant_index` query |
+| U9 visual triad | Scene selection by `variant_index` (0–2), not `tone_angle`; compiler **3.4** |
 | `hero_candidates.1` | Headline/subhead only |
 | `hero_candidates.2` | `copy_metrics`, `copy_overlay` for preview-frame geometry |
 

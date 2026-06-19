@@ -297,4 +297,4 @@ async def test_hero_regenerate_rescene_changes_prompt_archetype(monkeypatch, tmp
     )
     assert edit_meta["scene_archetype"] == "threshold_invitation"
     assert compiled.scene_archetype == "threshold_invitation"
-    assert "threshold" in compiled.prompt.lower() or "doorway" in compiled.prompt.lower()
+    assert "calm dental consult" in compiled.prompt.lower() or "dentist and patient" in compiled.prompt.lower()

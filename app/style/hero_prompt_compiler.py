@@ -12,10 +12,9 @@ from app.style.hero_archetypes import (
     resolve_hero_job,
     resolve_industry,
 )
+from app.style.hero_benefit_templates import resolve_benefit_template
 from app.style.hero_visual_strategy import (
     SceneArchetypeId,
-    catalog_entry,
-    hero_subject_guidance,
     industry_backdrop_modifier,
     industry_environment_anchors,
     resolve_variant_visual_strategy,
@@ -31,7 +30,7 @@ from app.style.hero_openai_prompt_serializer import (
 )
 from app.style.prompts import build_slot_prompt
 
-COMPILER_VERSION = "3.3"
+COMPILER_VERSION = "4.2"
 
 
 def build_hero_prompt_brief(
@@ -43,10 +42,7 @@ def build_hero_prompt_brief(
     scene_archetype_override: SceneArchetypeId | None = None,
 ) -> HeroPromptBrief:
     ctx = resolve_industry(request.business.industry)
-    archetype_id = scene_archetype_override or resolve_variant_visual_strategy(
-        request, variant, index
-    ).scene_archetype
-    scene = catalog_entry(archetype_id)
+    benefit = resolve_benefit_template(request.business.industry, index)
     backdrop = industry_backdrop_modifier(ctx.label)
     locale = format_locale(
         city=request.location.city,
@@ -60,9 +56,12 @@ def build_hero_prompt_brief(
     vp = viewport_spec(request.hero_viewport)
     env_anchors = industry_environment_anchors(ctx.label)
 
-    setting_parts = [backdrop, hero_subject_guidance(ctx.label)]
-    if env_anchors:
-        setting_parts.append(env_anchors)
+    if benefit.setting:
+        setting_parts = [benefit.setting]
+    else:
+        setting_parts = [backdrop]
+        if env_anchors:
+            setting_parts.append(env_anchors)
     if request.business.priority_services:
         svc = ", ".join(request.business.priority_services[:3])
         setting_parts.append(f"Priority services as subtle backdrop context only: {svc}.")
@@ -79,8 +78,8 @@ def build_hero_prompt_brief(
 
     return HeroPromptBrief(
         brand_context=f"{request.business.site_name} ({ctx.label}, {locale})",
-        subject=scene.subject,
-        people=scene.people,
+        subject=benefit.benefit_subject,
+        people=benefit.people,
         setting=". ".join(p.strip().rstrip(".") for p in setting_parts if p) + ".",
         composition=composition_block(
             tone_angle=tone,
@@ -98,7 +97,7 @@ def build_hero_prompt_brief(
         must_include=tuple(style_profile.must_include[:6]),
         invariants=collect_invariants(
             industry_label=ctx.label,
-            scene_avoid=scene.avoid,
+            scene_avoid=benefit.avoid,
             style_do_not=tuple(style_profile.do_not),
             industry_avoid_extra=ctx.avoid_extra,
         ),

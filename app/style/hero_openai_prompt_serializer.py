@@ -116,20 +116,23 @@ def collect_invariants(
     )
     industry_guards: dict[str, str] = {
         "dental": (
-            "Recognizable dental clinic environment only — exclude residential home, living room, "
-            "or kitchen interiors; exclude operatory, dental chair, and instrument close-ups as focal subjects."
+            "Recognizable dental clinic environment only — include gender and age diversity in people "
+            "(not all-female cast); exclude residential home, living room, or kitchen interiors; exclude "
+            "operatory, dental chair, and instrument close-ups as focal subjects."
         ),
         "legal": (
             "Attorney and client in professional law office consultation only — exclude family groups at "
             "doorways, domestic home interiors, and courtroom drama."
         ),
         "home_services": (
-            "On-site home service visit — technician with homeowner at entryway, exterior, or utility area; "
-            "exclude couch leisure, family on sofa, and domestic scenes with no service interaction."
+            "On-site home service at exterior work area — homeowner face visible toward camera, technician back-three-quarter "
+            "or profile at roofline, garage facade, utility area, or driveway; exclude doorway inversion (technician "
+            "welcoming homeowner into their own home), couch leisure, patio seating, and provider facing camera."
         ),
         "healthcare": (
-            "Clinic or therapy office with provider and patient in professional clinical attire — exclude gym, "
-            "athletic wear, gym bags, fitness-studio aesthetics, and residential interiors."
+            "Clinic or therapy office — exactly one person in scrubs, white coat, or clinical uniform; patient in "
+            "everyday street clothes; both faces visible at desk consult; exclude both subjects in medical attire, "
+            "symmetric hospital hallways, gym, athletic wear, and residential interiors."
         ),
         "outdoor_services": (
             "Outdoor yard or landscaped property with maintenance work visible — exclude indoor kitchen, "

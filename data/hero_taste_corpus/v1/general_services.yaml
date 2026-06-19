@@ -1,0 +1,39 @@
+corpus_version: '1.0'
+industry_label: general_services
+variants:
+- variant_index: 0
+  scene_archetype: desk_side_guidance
+  hero_job: trust
+  r2_key: hero-candidates/ee325ce4-d2e1-41f5-b8c3-06d5c5330637/0.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/ee325ce4-d2e1-41f5-b8c3-06d5c5330637/0.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '3.4'
+  approved_at: '2026-06-18'
+  approved_by: justin
+  source_note: batch 20260617T202916Z human_review good (pest control)
+- variant_index: 1
+  scene_archetype: threshold_invitation
+  hero_job: experience
+  r2_key: hero-candidates/ee325ce4-d2e1-41f5-b8c3-06d5c5330637/1.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/ee325ce4-d2e1-41f5-b8c3-06d5c5330637/1.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '3.4'
+  approved_at: ''
+  approved_by: ''
+  source_note: human_review bad — doorway roles swapped; regen needed
+- variant_index: 2
+  scene_archetype: confident_smile
+  hero_job: outcome
+  r2_key: hero-candidates/ee325ce4-d2e1-41f5-b8c3-06d5c5330637/2.png
+  public_url: https://pub-d2f41e5db653454a9f02405fcb14966f.r2.dev/hero-candidates/ee325ce4-d2e1-41f5-b8c3-06d5c5330637/2.png
+  style_profile_fragment:
+    lighting: soft natural window light
+    color_grading: warm professional
+  compiler_version: '3.4'
+  approved_at: '2026-06-18'
+  approved_by: justin
+  source_note: batch 20260617T202916Z human_review good (pest control)

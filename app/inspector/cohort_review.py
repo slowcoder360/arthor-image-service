@@ -33,10 +33,11 @@ REVIEW_ISSUE_TAGS: tuple[tuple[str, str], ...] = (
 def list_eval_sessions() -> list[str]:
     if not SCRATCH_DIR.is_dir():
         return []
+    prefixes = ("hero-cohort-eval", "hero-cohort-canary")
     names = sorted(
         p.name
         for p in SCRATCH_DIR.iterdir()
-        if p.is_dir() and p.name.startswith("hero-cohort-eval")
+        if p.is_dir() and any(p.name.startswith(prefix) for prefix in prefixes)
     )
     return names
 
