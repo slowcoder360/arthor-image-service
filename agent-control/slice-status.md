@@ -3,7 +3,7 @@
 | Slice | Branch | SHA | Tests | Status |
 |-------|--------|-----|-------|--------|
 | U9 visual triad | `main` (merged via U1–U8 wave) | on `main` | hero triad suite | **landed on main** |
-| U10 taste corpus | `pod/u10-hero-taste-corpus` | ``03ee829` (03ee8290b5c55180a3c7acb7a9ed5ef6fc379cf9)` | 93/93 hero+corpus | **ready for Justin merge** (LB-M0) |
+| U10 taste corpus | `pod/u10-hero-taste-corpus` | `9095a45` (9095a45d3e17de7c669359b41aaf06cf737f08ab) | 93/93 hero+corpus | **ready for Justin merge** (LB-M0) |
 
 **LB-M0 pytest:** `pytest tests/test_hero*.py tests/test_import_cohort_to_corpus.py`
 
