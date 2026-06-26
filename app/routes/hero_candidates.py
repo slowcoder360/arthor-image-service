@@ -37,6 +37,8 @@ from app.style.hero_visual_strategy import resolve_hero_visual_strategy
 from app.style.hero_reference_plan import build_hero_reference_plan
 from app.style.hero_taste_corpus import fulfill_corpus_hero_run, resolve_taste_corpus
 from app.style.profile import StyleProfile
+from app.style.hero_abstract_prompt import build_abstract_hero_prompt
+from app.layout.resolver import HeroLayoutDecision, resolve_hero_layout_archetype
 
 router = APIRouter()
 
@@ -65,6 +67,49 @@ def _map_poll_status(
     return "running"
 
 
+def _hero_palette_primary(hero_req: HeroCandidatesRequest) -> str:
+    try:
+        return str(hero_req.brand_visual.palette.light.primary)
+    except AttributeError:
+        return "#222222"
+
+
+def _abstract_hero_imagery(
+    decision: HeroLayoutDecision,
+    hero_req: HeroCandidatesRequest,
+    *,
+    fallback_from: str | None = None,
+) -> dict[str, Any]:
+    signal: dict[str, Any] = {
+        "kind": "abstract",
+        "imagery_type": "generative_abstract",
+        "prompt": build_abstract_hero_prompt(
+            palette_primary=_hero_palette_primary(hero_req),
+            seed=hero_req.base_seed,
+            variant_index=0,
+        ),
+    }
+    if fallback_from:
+        signal["fallback_from"] = fallback_from
+    return signal
+
+
+def _resolve_nonphoto_hero_imagery(
+    decision: HeroLayoutDecision,
+    hero_req: HeroCandidatesRequest,
+) -> dict[str, Any]:
+    """Typed hero imagery signal for non-photo archetypes — never a synthetic screenshot."""
+    if decision.imagery_type == "none" or decision.archetype == "typographic_no_image":
+        return {"kind": "none", "reason": decision.archetype}
+    if decision.archetype == "product_screenshot":
+        capture = hero_req.product_capture_url
+        if capture:
+            return {"kind": "client_capture", "url": str(capture), "imagery_type": "product_ui"}
+        # No client capture: fall back deterministically — never synthesize a screenshot.
+        return _abstract_hero_imagery(decision, hero_req, fallback_from="product_screenshot")
+    return _abstract_hero_imagery(decision, hero_req)
+
+
 def _parse_hero_request(raw: bytes) -> HeroCandidatesRequest:
     try:
         return HeroCandidatesRequest.model_validate_json(raw)
@@ -82,7 +127,13 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
     if pool is None:
         return JSONResponse(status_code=503, content={"detail": "database_unavailable"})
 
-    use_corpus = hero_req.generation_mode == "corpus"
+    layout_decision = resolve_hero_layout_archetype(
+        brand_mode=hero_req.brand_mode,
+        industry=hero_req.business.industry,
+    )
+
+    # Non-photo archetypes never touch the photographic taste corpus.
+    use_corpus = hero_req.generation_mode == "corpus" and layout_decision.scene_catalog_eligible
     corpus = None
     if use_corpus:
         corpus = resolve_taste_corpus(hero_req.business.industry, corpus_version=hero_req.corpus_version)
@@ -147,7 +198,7 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
     reference_plan = build_hero_reference_plan(hero_req)
     compiled_prompts: list[Any] = []
     improver_stats = None
-    if not use_corpus:
+    if not use_corpus and layout_decision.scene_catalog_eligible:
         compiled_prompts = await finalize_hero_triad_prompts(
             services,
             hero_req,
@@ -164,16 +215,19 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
         "hero_viewport": hero_req.hero_viewport,
         "hero_copy_overlay": build_hero_copy_overlay_metadata(hero_req),
         "payload_version": hero_req.payload_version,
+        "hero_layout_decision": layout_decision.to_dict(),
     }
     if use_corpus:
         metadata_patch["corpus_industry_label"] = corpus.industry_label if corpus else None
         if corpus is not None and corpus.slug:
             metadata_patch["corpus_slug"] = corpus.slug
-    else:
+    elif layout_decision.scene_catalog_eligible:
         metadata_patch["hero_provider_prompts"] = [p.to_dict() for p in compiled_prompts]
         metadata_patch["hero_prompt_compiler_version"] = (
             compiled_prompts[0].compiler_version if compiled_prompts else None
         )
+    else:
+        metadata_patch["hero_imagery"] = _resolve_nonphoto_hero_imagery(layout_decision, hero_req)
     if hero_req.source_desktop_run_id is not None:
         metadata_patch["source_desktop_run_id"] = str(hero_req.source_desktop_run_id)
         metadata_patch["desktop_seed_edit"] = True
@@ -188,7 +242,10 @@ async def generate_hero_candidates(request: Request) -> JSONResponse:
         metadata_patch=metadata_patch,
     )
 
-    if use_corpus and corpus is not None:
+    if not layout_decision.scene_catalog_eligible:
+        # Non-photo hero: emit the decision + imagery signal; no photographic generation.
+        await update_run_status(pool, run_id, status="ok", finished=True)
+    elif use_corpus and corpus is not None:
         await fulfill_corpus_hero_run(
             pool,
             run_id=run_id,
@@ -244,6 +301,11 @@ async def _build_poll_response(
     failed = sum(1 for a in assets if str(a["status"]) == "failed")
     poll_status = _map_poll_status(str(run_row["status"]), uploaded=uploaded, failed=failed)
 
+    run_md_early = run_row["metadata"]
+    if isinstance(run_md_early, str):
+        run_md_early = json.loads(run_md_early)
+    layout_decision_md = run_md_early.get("hero_layout_decision") if isinstance(run_md_early, dict) else None
+
     urls: list[dict[str, Any]] = []
     for row in assets:
         if str(row["status"]) != "uploaded" or not row["r2_url"]:
@@ -276,6 +338,11 @@ async def _build_poll_response(
             entry["style_profile_fragment"] = md["style_profile_fragment"]
         if md.get("corpus_backed"):
             entry["corpus_backed"] = True
+        if isinstance(layout_decision_md, dict):
+            if layout_decision_md.get("archetype"):
+                entry["layout_archetype"] = layout_decision_md["archetype"]
+            if layout_decision_md.get("imagery_type"):
+                entry["imagery_type"] = layout_decision_md["imagery_type"]
         urls.append(entry)
 
     urls.sort(key=lambda u: (u.get("variant_index") is None, u.get("variant_index", 0)))

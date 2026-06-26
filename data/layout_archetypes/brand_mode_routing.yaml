@@ -1,0 +1,22 @@
+routing_version: '1.0'
+# brand_mode -> default hero layout archetype.
+defaults:
+  local_service: split_copy_image
+  home_service: split_copy_image
+  professional_service: split_copy_image
+  healthcare: split_copy_image
+  agency: split_copy_image
+  premium_local: full_bleed_photo_overlay
+  ecommerce: full_bleed_photo_overlay
+  restaurant: full_bleed_photo_overlay
+  ai_platform: centered_copy_cta
+  consulting: centered_copy_cta
+  tech_saas: product_screenshot
+  dev_tools: abstract_gradient_3d
+  creative_portfolio: typographic_no_image
+# Ordered imagery fallbacks per archetype. product_screenshot must never resolve to
+# a synthetic screenshot, so it falls back to generated/abstract layouts.
+fallbacks:
+  product_screenshot:
+    - abstract_gradient_3d
+    - centered_copy_cta

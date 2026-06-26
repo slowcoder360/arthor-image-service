@@ -1,0 +1,38 @@
+map_version: '1.0'
+# v1 stopgap only: used when the explicit brand_mode field is absent.
+# industry/slug substring -> brand_mode. Longest substring match wins.
+map:
+  dental: local_service
+  dentist: local_service
+  orthodont: local_service
+  salon: premium_local
+  med spa: premium_local
+  med_spa: premium_local
+  restaurant: restaurant
+  cafe: restaurant
+  hvac: home_service
+  plumb: home_service
+  electric: home_service
+  roofing: home_service
+  landscap: home_service
+  legal: professional_service
+  law: professional_service
+  attorney: professional_service
+  cpa: professional_service
+  insurance: professional_service
+  healthcare: healthcare
+  clinic: healthcare
+  therapy: healthcare
+  chiro: healthcare
+  agency: agency
+  marketing: agency
+  ai: ai_platform
+  saas: tech_saas
+  software: tech_saas
+  fintech: tech_saas
+  dev tools: dev_tools
+  developer tools: dev_tools
+  ecommerce: ecommerce
+  e-commerce: ecommerce
+  portfolio: creative_portfolio
+  studio: creative_portfolio

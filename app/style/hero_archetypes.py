@@ -55,13 +55,32 @@ TONE_PEOPLE: dict[str, str] = {
 GLOBAL_HERO_AVOID: tuple[str, ...] = (
     "dental chair or operatory as hero subject",
     "empty equipment as hero subject",
-    "blank left half or empty void reserved for copy",
-    "sterile copy-zone wall with no scene continuity",
     "stock smile staring at camera",
     "field-service provider facing camera when no team likeness refs",
     "website mockups",
     "rendered words or signage text",
 )
+
+
+def hero_avoid_for_archetype(archetype: str) -> tuple[str, ...]:
+    """Merge global avoids with the archetype-specific avoids from the layout catalog.
+
+    Global items first, de-duplicated, order-stable. Unknown/absent archetype → global only
+    (legacy fallback). The copy-zone bans (e.g. "blank left half") live on
+    ``full_bleed_photo_overlay`` only — they are required geometry for ``split_copy_image``.
+    """
+    from app.layout.catalog import load_layout_catalog
+
+    archetype_avoid: tuple[str, ...] = ()
+    for entry in load_layout_catalog():
+        if entry.archetype == archetype:
+            archetype_avoid = entry.avoid
+            break
+    merged = list(GLOBAL_HERO_AVOID)
+    for item in archetype_avoid:
+        if item not in merged:
+            merged.append(item)
+    return tuple(merged)
 
 
 @dataclass(frozen=True)

@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     hero_openai_image_quality: str = "high"
     google_image_model: str = "gemini-2.5-flash-image"
     hero_prompt_cache_enabled: bool = True
+    layout_archetype_data_path: str | None = None
 
     @model_validator(mode="after")
     def _resolve_r2_aliases(self) -> Self:

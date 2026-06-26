@@ -151,6 +151,8 @@ class HeroCandidatesRequest(BaseModel):
     generation_mode: HeroGenerationMode = "corpus"
     corpus_version: str = "2.0"
     corpus_fallback: CorpusFallback | None = None
+    brand_mode: str | None = None
+    product_capture_url: str | None = None
 
     @model_validator(mode="after")
     def _desktop_seed_requires_mobile(self) -> HeroCandidatesRequest:

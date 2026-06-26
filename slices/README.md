@@ -138,3 +138,38 @@ All 16 slices have their orchestrator-owned red suite committed under `slices/<i
 ## Cross-slice vocabulary
 
 See [plan/CONTEXT.md](../plan/CONTEXT.md) for the shared vocabulary every slice consumes (StyleProfile, prompt_hash, supersession, etc.) and [plan/adr/](../plan/adr/) for the 10 decisions that anchor the slice specs.
+
+---
+
+## Wave LB-layout — Hero layout-archetype layer (hero-only v1)
+
+Adds a deterministic `hero_layout_archetype` decision layer **above** the photographic scene/corpus pipeline, so non-local-service brands (tech/agency/SaaS) get the right hero composition + imagery instead of a forced full-bleed human photo. Proposal + research: [plan/research/SYNTHESIS-hero-layout-archetype.md](../plan/research/SYNTHESIS-hero-layout-archetype.md). Locked constraints: hero-only; deterministic routing (no LLM); `brand_mode` is an explicit upstream field with the industry map only as a stopgap; static data vendored from seo-core via env-pointed path; `product_screenshot` is never synthesized; image-service emits decision + imagery (or a typed no-image signal), never HTML.
+
+| ID | Title | Status | Depends on | Size |
+|---|---|---|---|---|
+| [s17-layout-archetype-data](s17-layout-archetype-data/SPEC.md) | Vendored catalog + brand_mode routing + industry→mode map + env-pointed loader | green | — | M (~300 LOC) |
+| [s18-layout-archetype-resolver](s18-layout-archetype-resolver/SPEC.md) | Thin standalone deterministic `brand_mode → archetype` resolver (lift-and-shift ready) | green | s17 | S (~220 LOC) |
+| [s19-brand-mode-contract](s19-brand-mode-contract/SPEC.md) | `brand_mode` payload field + stopgap derivation + decision on run metadata | green | s18 | S (~180 LOC) |
+| [s20-archetype-avoid-lists](s20-archetype-avoid-lists/SPEC.md) | Split `GLOBAL_HERO_AVOID` into per-archetype avoid-lists | green | s17, s18 | S (~160 LOC) |
+| [s21-hero-imagery-branching](s21-hero-imagery-branching/SPEC.md) | Archetype-driven imagery branch: photo / abstract / typed no-image / no-synthetic-screenshot | green | s18, s19, s20 | M (~380 LOC) |
+
+All five slices **green** (implemented + tests passing; awaiting review/merge). Wave + regression verify: **44 passed** (`slices/s17..s21 + tests/test_hero_candidates.py`), and **95 passed** across `tests/` (no regressions). Run: `.venv/bin/python -m pytest slices/s17-layout-archetype-data slices/s18-layout-archetype-resolver slices/s19-brand-mode-contract slices/s20-archetype-avoid-lists slices/s21-hero-imagery-branching tests/`.
+
+```mermaid
+flowchart TD
+  s17[s17 layout-archetype static data + loader]
+  s18[s18 standalone resolver]
+  s19[s19 brand_mode contract + metadata]
+  s20[s20 per-archetype avoid-lists]
+  s21[s21 hero imagery branching - integration]
+
+  s17 --> s18
+  s18 --> s19
+  s17 --> s20
+  s18 --> s20
+  s18 --> s21
+  s19 --> s21
+  s20 --> s21
+```
+
+Dispatch waves: **L0** s17 (alone) → **L1** s18 (alone) → **L2** s19 + s20 (parallel; disjoint files) → **L3** s21 (alone; integration, edits route + worker).

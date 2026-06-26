@@ -1,0 +1,49 @@
+catalog_version: '1.0'
+# Hero layout-archetype catalog. Vendored from seo-core; the in-repo copy is the
+# default when LAYOUT_ARCHETYPE_DATA_PATH is unset. Imagery_type tells the image
+# pipeline what (if anything) to produce; scene_catalog_eligible gates the photo path.
+archetypes:
+  split_copy_image:
+    imagery_type: real_photo
+    scene_catalog_eligible: true
+    structure: 'Two-column: copy block (headline, sub, CTA) + media column'
+    avoid:
+      - generic stock photography
+      - dual primary CTAs
+  full_bleed_photo_overlay:
+    imagery_type: real_photo
+    scene_catalog_eligible: true
+    structure: 'Full-viewport background photo + scrim + copy stack'
+    avoid:
+      - blank left half or empty void reserved for copy
+      - sterile copy-zone wall with no scene continuity
+      - hero image carousel
+  centered_copy_cta:
+    imagery_type: abstract_or_none
+    scene_catalog_eligible: false
+    structure: 'Single-column centered copy stack; optional subtle background'
+    avoid:
+      - feature bullets in hero
+      - long subhead over two sentences
+  abstract_gradient_3d:
+    imagery_type: generative_abstract
+    scene_catalog_eligible: false
+    structure: 'Centered or split copy on mesh/gradient background'
+    avoid:
+      - people or human subjects
+      - rainbow or indigo-purple gradient
+      - gradient masking a weak value prop
+  typographic_no_image:
+    imagery_type: none
+    scene_catalog_eligible: false
+    structure: 'Display type with minimal chrome; no dominant image'
+    avoid:
+      - people or human subjects
+      - category descriptions instead of a value prop
+  product_screenshot:
+    imagery_type: product_ui
+    scene_catalog_eligible: false
+    structure: 'Copy + dominant product UI capture (split or stacked)'
+    avoid:
+      - synthetic or lorem product UI
+      - illustration replacing the product
